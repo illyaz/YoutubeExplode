@@ -61,7 +61,7 @@ internal class PlaylistController
     {
         for (var retriesRemaining = 5;; retriesRemaining--)
         {
-            using var request = new HttpRequestMessage(HttpMethod.Post, "https://www.youtube.com/youtubei/v1/next")
+            using var request = new HttpRequestMessage(HttpMethod.Post, "https://www.youtube.com/youtubei/v1/next?fields=responseContext.visitorData,contents.twoColumnWatchNextResults.playlist.playlist.contents.playlistPanelVideoRenderer(navigationEndpoint.watchEndpoint.index,videoId,title(simpleText,runs.text),longBylineText.runs(text,navigationEndpoint.browseEndpoint.browseId),lengthText(simpleText,runs.text),thumbnail)")
             {
                 Content = new StringContent(
                     $$"""

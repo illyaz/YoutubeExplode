@@ -4,10 +4,12 @@ using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+
 using YoutubeExplode.Bridge;
 using YoutubeExplode.Common;
 using YoutubeExplode.Exceptions;
 using YoutubeExplode.Playlists;
+using YoutubeExplode.Utils;
 using YoutubeExplode.Utils.Extensions;
 
 namespace YoutubeExplode.Channels;
@@ -103,5 +105,66 @@ public class ChannelClient
         // Replace 'UC' in the channel ID with 'UU'
         var playlistId = "UU" + channelId.Value[2..];
         return new PlaylistClient(_http).GetVideosAsync(playlistId, cancellationToken);
+    }
+
+    public async ValueTask<Channel> GetInnertubeAsync(
+        ChannelId channelId,
+        CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, "https://www.youtube.com/youtubei/v1/browse?fields=metadata.channelMetadataRenderer(title,externalId,avatar),alerts")
+        {
+            Content = new StringContent(
+                $$"""
+                {
+                    "browseId": "{{channelId}}",
+                    "params": "EgVhYm91dPIGBAoCEgA%3D",
+                    "context": {
+                        "client": {
+                            "clientName": "MWEB",
+                            "clientVersion": "2.20230420.05.00",
+                            "hl": "en",
+                            "gl": "US",
+                            "utcOffsetMinutes": 0
+                        }
+                    }
+                }
+                """
+            )
+        };
+
+        using var response = await _http.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        var content = Json.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+        var alertRenderer = content
+            .GetPropertyOrNull("alerts")?
+            .EnumerateArrayOrNull()?
+            .Select(x => x.GetPropertyOrNull("alertRenderer"))
+            .WhereNotNull()
+            .FirstOrNull()?
+            .GetPropertyOrNull("text")?
+            .GetPropertyOrNull("simpleText")?
+            .GetString();
+
+        if (alertRenderer != null)
+            throw new ChannelUnavailableException(alertRenderer);
+
+        var channelMetadataRenderer = content
+            .GetPropertyOrNull("metadata")?
+            .GetPropertyOrNull("channelMetadataRenderer")
+            ?? throw new YoutubeExplodeException("Could not extract channelMetadataRenderer");
+
+        return new Channel(
+            channelMetadataRenderer.GetProperty("externalId").GetString() ?? throw new YoutubeExplodeException("Could not extract channel ID."),
+            channelMetadataRenderer.GetProperty("title").GetString() ?? throw new YoutubeExplodeException("Could not extract channel title."),
+            channelMetadataRenderer
+                .GetProperty("avatar")
+                .GetProperty("thumbnails")
+                .EnumerateArrayOrEmpty()
+                .Select(x => new Thumbnail(
+                    x.GetPropertyOrNull("url")?.GetString() ?? throw new YoutubeExplodeException("Could not extract thumbnail url."),
+                    new Resolution(
+                        x.GetProperty("width").GetInt32(),
+                        x.GetProperty("height").GetInt32()))).ToArray());
     }
 }
