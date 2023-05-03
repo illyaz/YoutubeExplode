@@ -13,6 +13,9 @@ public class Channel : IChannel
     public ChannelId Id { get; }
 
     /// <inheritdoc />
+    public ChannelHandle? Handle { get; init; }
+
+    /// <inheritdoc />
     public string Url => $"https://www.youtube.com/channel/{Id}";
 
     /// <inheritdoc />

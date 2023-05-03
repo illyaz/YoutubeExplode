@@ -111,7 +111,7 @@ public class ChannelClient
         ChannelId channelId,
         CancellationToken cancellationToken = default)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, "https://www.youtube.com/youtubei/v1/browse?fields=metadata.channelMetadataRenderer(title,externalId,avatar),alerts")
+        using var request = new HttpRequestMessage(HttpMethod.Post, "https://www.youtube.com/youtubei/v1/browse?fields=metadata.channelMetadataRenderer(title,externalId,avatar,vanityChannelUrl),alerts")
         {
             Content = new StringContent(
                 $$"""
@@ -165,6 +165,10 @@ public class ChannelClient
                     x.GetPropertyOrNull("url")?.GetString() ?? throw new YoutubeExplodeException("Could not extract thumbnail url."),
                     new Resolution(
                         x.GetProperty("width").GetInt32(),
-                        x.GetProperty("height").GetInt32()))).ToArray());
+                        x.GetProperty("height").GetInt32()))).ToArray())
+        {
+            Handle = ChannelHandle.TryParse(channelMetadataRenderer.GetProperty("vanityChannelUrl").GetString()
+                ?? throw new YoutubeExplodeException("Could not extract channel vanity."))
+        };
     }
 }
