@@ -16,6 +16,18 @@ public class Channel : IChannel
     public ChannelHandle? Handle { get; init; }
 
     /// <inheritdoc />
+    public string Description { get; init; }
+
+    /// <inheritdoc />
+    public long? VideoCount { get; init; }
+
+    /// <inheritdoc />
+    public long? SubscriberCount { get; init; }
+
+    /// <inheritdoc />
+    public IReadOnlyList<Thumbnail> Banners { get; init; }
+
+    /// <inheritdoc />
     public string Url => $"https://www.youtube.com/channel/{Id}";
 
     /// <inheritdoc />

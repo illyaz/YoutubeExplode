@@ -105,4 +105,24 @@ internal static class StringExtensions
             : null;
 
     public static string ConcatToString<T>(this IEnumerable<T> source) => string.Concat(source);
+
+    public static long ParseLongWithSizeSuffix(this string s)
+    {
+        var suffix = s[^1];
+
+        if (char.IsDigit(suffix))
+            return long.Parse(s);
+
+        var value = double.Parse(s[0..^1],
+            NumberStyles.Float | NumberStyles.AllowThousands,
+            NumberFormatInfo.InvariantInfo); ;
+
+        return (long)(value * suffix switch
+        {
+            'K' => 1e3,
+            'M' => 1e6,
+            'B' => 1e9,
+            _ => throw new FormatException($"Invalid suffix '{suffix}' for '{s}'")
+        });
+    }
 }
