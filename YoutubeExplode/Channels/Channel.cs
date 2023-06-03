@@ -13,21 +13,6 @@ public class Channel : IChannel
     public ChannelId Id { get; }
 
     /// <inheritdoc />
-    public ChannelHandle? Handle { get; init; }
-
-    /// <inheritdoc />
-    public string Description { get; init; }
-
-    /// <inheritdoc />
-    public long? VideoCount { get; init; }
-
-    /// <inheritdoc />
-    public long? SubscriberCount { get; init; }
-
-    /// <inheritdoc />
-    public IReadOnlyList<Thumbnail> Banners { get; init; }
-
-    /// <inheritdoc />
     public string Url => $"https://www.youtube.com/channel/{Id}";
 
     /// <inheritdoc />
@@ -49,4 +34,37 @@ public class Channel : IChannel
     /// <inheritdoc />
     [ExcludeFromCodeCoverage]
     public override string ToString() => $"Channel ({Title})";
+}
+
+/// <inheritdoc />
+public class ExtendedChannel : Channel
+{
+    /// <inheritdoc />
+    public ChannelHandle? Handle { get; }
+
+    /// <inheritdoc />
+    public string Description { get; }
+
+    /// <inheritdoc />
+    public long? VideoCount { get; }
+
+    /// <inheritdoc />
+    public long? SubscriberCount { get; }
+
+    /// <inheritdoc />
+    public IReadOnlyList<Thumbnail> Banners { get; }
+
+    /// <inheritdoc />
+    public ExtendedChannel(ChannelId id, ChannelHandle? handle, string title,
+        string description, long videoCount, long? subscriberCount, 
+        IReadOnlyList<Thumbnail> thumbnails, 
+        IReadOnlyList<Thumbnail> banners) 
+        : base(id, title, thumbnails)
+    {
+        Handle = handle;
+        Description = description;
+        VideoCount = videoCount;
+        SubscriberCount = subscriberCount;
+        Banners = banners;
+    }
 }
