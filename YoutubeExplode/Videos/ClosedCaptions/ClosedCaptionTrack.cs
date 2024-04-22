@@ -7,12 +7,20 @@ namespace YoutubeExplode.Videos.ClosedCaptions;
 /// <summary>
 /// Contains closed captions in a specific language.
 /// </summary>
-public class ClosedCaptionTrack(IReadOnlyList<ClosedCaption> captions)
+public class ClosedCaptionTrack
 {
     /// <summary>
     /// Closed captions included in the track.
     /// </summary>
-    public IReadOnlyList<ClosedCaption> Captions { get; } = captions;
+    public IReadOnlyList<ClosedCaption> Captions { get; }
+
+    /// <summary>
+    /// Initializes an instance of <see cref="ClosedCaptionTrack" />.
+    /// </summary>
+    public ClosedCaptionTrack(IReadOnlyList<ClosedCaption> captions)
+    {
+        Captions = captions;
+    }
 
     /// <summary>
     /// Gets the caption displayed at the specified point in time.
@@ -25,6 +33,6 @@ public class ClosedCaptionTrack(IReadOnlyList<ClosedCaption> captions)
     /// Gets the caption displayed at the specified point in time.
     /// </summary>
     public ClosedCaption GetByTime(TimeSpan time) =>
-        TryGetByTime(time)
-        ?? throw new InvalidOperationException($"No closed caption found at {time}.");
+        TryGetByTime(time) ??
+        throw new InvalidOperationException($"No closed caption found at {time}.");
 }

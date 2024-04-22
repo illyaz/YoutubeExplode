@@ -6,20 +6,20 @@ using YoutubeExplode.Exceptions;
 
 namespace YoutubeExplode.Channels;
 
-internal class ChannelController(HttpClient http)
+internal class ChannelController
 {
+    private readonly HttpClient _http;
+
+    public ChannelController(HttpClient http) => _http = http;
+
     private async ValueTask<ChannelPage> GetChannelPageAsync(
         string channelRoute,
-        CancellationToken cancellationToken = default
-    )
+        CancellationToken cancellationToken = default)
     {
-        for (var retriesRemaining = 5; ; retriesRemaining--)
+        for (var retriesRemaining = 5;; retriesRemaining--)
         {
             var channelPage = ChannelPage.TryParse(
-                await http.GetStringAsync(
-                    "https://www.youtube.com/" + channelRoute,
-                    cancellationToken
-                )
+                await _http.GetStringAsync("https://www.youtube.com/" + channelRoute, cancellationToken)
             );
 
             if (channelPage is null)
@@ -28,7 +28,8 @@ internal class ChannelController(HttpClient http)
                     continue;
 
                 throw new YoutubeExplodeException(
-                    "Channel page is broken. Please try again in a few minutes."
+                    "Channel page is broken. " +
+                    "Please try again in a few minutes."
                 );
             }
 
@@ -38,21 +39,21 @@ internal class ChannelController(HttpClient http)
 
     public async ValueTask<ChannelPage> GetChannelPageAsync(
         ChannelId channelId,
-        CancellationToken cancellationToken = default
-    ) => await GetChannelPageAsync("channel/" + channelId, cancellationToken);
+        CancellationToken cancellationToken = default) =>
+        await GetChannelPageAsync("channel/" + channelId, cancellationToken);
 
     public async ValueTask<ChannelPage> GetChannelPageAsync(
         UserName userName,
-        CancellationToken cancellationToken = default
-    ) => await GetChannelPageAsync("user/" + userName, cancellationToken);
+        CancellationToken cancellationToken = default) =>
+        await GetChannelPageAsync("user/" + userName, cancellationToken);
 
     public async ValueTask<ChannelPage> GetChannelPageAsync(
         ChannelSlug channelSlug,
-        CancellationToken cancellationToken = default
-    ) => await GetChannelPageAsync("c/" + channelSlug, cancellationToken);
+        CancellationToken cancellationToken = default) =>
+        await GetChannelPageAsync("c/" + channelSlug, cancellationToken);
 
     public async ValueTask<ChannelPage> GetChannelPageAsync(
         ChannelHandle channelHandle,
-        CancellationToken cancellationToken = default
-    ) => await GetChannelPageAsync("@" + channelHandle, cancellationToken);
+        CancellationToken cancellationToken = default) =>
+        await GetChannelPageAsync("@" + channelHandle, cancellationToken);
 }

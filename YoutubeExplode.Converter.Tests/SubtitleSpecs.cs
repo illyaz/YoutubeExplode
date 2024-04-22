@@ -24,7 +24,7 @@ public class SubtitleSpecs : IAsyncLifetime
         using var dir = TempDir.Create();
         var filePath = Path.Combine(dir.Path, "video.mp4");
 
-        var streamManifest = await youtube.Videos.Streams.GetManifestAsync("NtQkz0aRDe8");
+        var streamManifest = await youtube.Videos.Streams.GetManifestAsync("YltHGKX80Y8");
         var streamInfos = streamManifest
             .GetVideoStreams()
             .Where(s => s.Container == Container.Mp4)
@@ -32,7 +32,7 @@ public class SubtitleSpecs : IAsyncLifetime
             .Take(1)
             .ToArray();
 
-        var trackManifest = await youtube.Videos.ClosedCaptions.GetManifestAsync("NtQkz0aRDe8");
+        var trackManifest = await youtube.Videos.ClosedCaptions.GetManifestAsync("YltHGKX80Y8");
         var trackInfos = trackManifest.Tracks;
 
         // Act
@@ -46,12 +46,7 @@ public class SubtitleSpecs : IAsyncLifetime
         MediaFormat.IsMp4File(filePath).Should().BeTrue();
 
         foreach (var trackInfo in trackInfos)
-        {
-            FileEx
-                .ContainsBytes(filePath, Encoding.ASCII.GetBytes(trackInfo.Language.Name))
-                .Should()
-                .BeTrue();
-        }
+            FileEx.ContainsBytes(filePath, Encoding.ASCII.GetBytes(trackInfo.Language.Name)).Should().BeTrue();
     }
 
     [Fact]
@@ -63,7 +58,7 @@ public class SubtitleSpecs : IAsyncLifetime
         using var dir = TempDir.Create();
         var filePath = Path.Combine(dir.Path, "video.webm");
 
-        var streamManifest = await youtube.Videos.Streams.GetManifestAsync("NtQkz0aRDe8");
+        var streamManifest = await youtube.Videos.Streams.GetManifestAsync("YltHGKX80Y8");
         var streamInfos = streamManifest
             .GetVideoStreams()
             .Where(s => s.Container == Container.WebM)
@@ -71,7 +66,7 @@ public class SubtitleSpecs : IAsyncLifetime
             .Take(1)
             .ToArray();
 
-        var trackManifest = await youtube.Videos.ClosedCaptions.GetManifestAsync("NtQkz0aRDe8");
+        var trackManifest = await youtube.Videos.ClosedCaptions.GetManifestAsync("YltHGKX80Y8");
         var trackInfos = trackManifest.Tracks;
 
         // Act
@@ -85,11 +80,6 @@ public class SubtitleSpecs : IAsyncLifetime
         MediaFormat.IsWebMFile(filePath).Should().BeTrue();
 
         foreach (var trackInfo in trackInfos)
-        {
-            FileEx
-                .ContainsBytes(filePath, Encoding.ASCII.GetBytes(trackInfo.Language.Name))
-                .Should()
-                .BeTrue();
-        }
+            FileEx.ContainsBytes(filePath, Encoding.ASCII.GetBytes(trackInfo.Language.Name)).Should().BeTrue();
     }
 }

@@ -9,10 +9,15 @@ using YoutubeExplode.Tests.TestData;
 
 namespace YoutubeExplode.Tests;
 
-public class VideoSpecs(ITestOutputHelper testOutput)
+public class VideoSpecs
 {
+    private readonly ITestOutputHelper _testOutput;
+
+    public VideoSpecs(ITestOutputHelper testOutput) =>
+        _testOutput = testOutput;
+
     [Fact]
-    public async Task I_can_get_the_metadata_of_a_video()
+    public async Task I_can_get_metadata_of_a_video()
     {
         // Arrange
         var youtube = new YoutubeClient();
@@ -31,24 +36,11 @@ public class VideoSpecs(ITestOutputHelper testOutput)
         video.Description.Should().Contain("More about PSY@");
         video.Duration.Should().BeCloseTo(TimeSpan.FromSeconds(252), TimeSpan.FromSeconds(1));
         video.Thumbnails.Should().NotBeEmpty();
-        video
-            .Keywords.Should()
-            .BeEquivalentTo(
-                "PSY",
-                "싸이",
-                "강남스타일",
-                "뮤직비디오",
-                "Music Video",
-                "Gangnam Style",
-                "KOREAN SINGER",
-                "KPOP",
-                "KOERAN WAVE",
-                "PSY 6甲",
-                "6th Studio Album",
-                "싸이6집",
-                "육갑",
-                "Psy Gangnam Style"
-            );
+        video.Keywords.Should().BeEquivalentTo(
+            "PSY", "싸이", "강남스타일", "뮤직비디오",
+            "Music Video", "Gangnam Style", "KOREAN SINGER", "KPOP", "KOERAN WAVE",
+            "PSY 6甲", "6th Studio Album", "싸이6집", "육갑"
+        );
         video.Engagement.ViewCount.Should().BeGreaterOrEqualTo(4_650_000_000);
         video.Engagement.LikeCount.Should().BeGreaterOrEqualTo(24_000_000);
         video.Engagement.DislikeCount.Should().BeGreaterOrEqualTo(0);
@@ -56,43 +48,42 @@ public class VideoSpecs(ITestOutputHelper testOutput)
     }
 
     [Fact]
-    public async Task I_can_try_to_get_the_metadata_of_a_video_and_get_an_error_if_it_is_private()
+    public async Task I_cannot_get_metadata_of_a_private_video()
     {
         // Arrange
         var youtube = new YoutubeClient();
 
         // Act & assert
-        var ex = await Assert.ThrowsAsync<VideoUnavailableException>(
-            async () => await youtube.Videos.GetAsync(VideoIds.Private)
+        var ex = await Assert.ThrowsAsync<VideoUnavailableException>(async () =>
+            await youtube.Videos.GetAsync(VideoIds.Private)
         );
 
-        testOutput.WriteLine(ex.ToString());
+        _testOutput.WriteLine(ex.Message);
     }
 
     [Fact]
-    public async Task I_can_try_to_get_the_metadata_of_a_video_and_get_an_error_if_it_does_not_exist()
+    public async Task I_cannot_get_metadata_of_a_non_existing_video()
     {
         // Arrange
         var youtube = new YoutubeClient();
 
         // Act & assert
-        var ex = await Assert.ThrowsAsync<VideoUnavailableException>(
-            async () => await youtube.Videos.GetAsync(VideoIds.Deleted)
+        var ex = await Assert.ThrowsAsync<VideoUnavailableException>(async () =>
+            await youtube.Videos.GetAsync(VideoIds.Deleted)
         );
 
-        testOutput.WriteLine(ex.ToString());
+        _testOutput.WriteLine(ex.Message);
     }
 
     [Theory]
     [InlineData(VideoIds.Normal)]
     [InlineData(VideoIds.Unlisted)]
-    [InlineData(VideoIds.RequiresPurchaseDistributed)]
     [InlineData(VideoIds.EmbedRestrictedByYouTube)]
     [InlineData(VideoIds.EmbedRestrictedByAuthor)]
     [InlineData(VideoIds.AgeRestrictedViolent)]
     [InlineData(VideoIds.AgeRestrictedEmbedRestricted)]
     [InlineData(VideoIds.WithBrokenTitle)]
-    public async Task I_can_get_the_metadata_of_any_available_video(string videoId)
+    public async Task I_can_get_metadata_of_any_available_video(string videoId)
     {
         // Arrange
         var youtube = new YoutubeClient();

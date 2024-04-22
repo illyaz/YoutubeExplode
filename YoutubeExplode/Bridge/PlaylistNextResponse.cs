@@ -1,58 +1,73 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
-using Lazy;
 using YoutubeExplode.Utils;
 using YoutubeExplode.Utils.Extensions;
 
 namespace YoutubeExplode.Bridge;
 
-internal partial class PlaylistNextResponse(JsonElement content) : IPlaylistData
+internal partial class PlaylistNextResponse : IPlaylistData
 {
-    [Lazy]
-    private JsonElement? ContentRoot =>
-        content
-            .GetPropertyOrNull("contents")
-            ?.GetPropertyOrNull("twoColumnWatchNextResults")
-            ?.GetPropertyOrNull("playlist")
-            ?.GetPropertyOrNull("playlist");
+    private readonly JsonElement _content;
 
-    [Lazy]
-    public bool IsAvailable => ContentRoot is not null;
+    private JsonElement? ContentRoot => Memo.Cache(this, () =>
+        _content
+            .GetPropertyOrNull("contents")?
+            .GetPropertyOrNull("twoColumnWatchNextResults")?
+            .GetPropertyOrNull("playlist")?
+            .GetPropertyOrNull("playlist")
+    );
 
-    [Lazy]
-    public string? Title => ContentRoot?.GetPropertyOrNull("title")?.GetStringOrNull();
+    public bool IsAvailable => Memo.Cache(this, () =>
+        ContentRoot is not null
+    );
 
-    [Lazy]
-    public string? Author =>
-        ContentRoot
-            ?.GetPropertyOrNull("ownerName")
-            ?.GetPropertyOrNull("simpleText")
-            ?.GetStringOrNull();
+    public string? Title => Memo.Cache(this, () =>
+        ContentRoot?
+            .GetPropertyOrNull("title")?
+            .GetStringOrNull()
+    );
+
+    public string? Author => Memo.Cache(this, () =>
+        ContentRoot?
+            .GetPropertyOrNull("ownerName")?
+            .GetPropertyOrNull("simpleText")?
+            .GetStringOrNull()
+    );
 
     public string? ChannelId => null;
 
     public string? Description => null;
 
-    [Lazy]
-    public IReadOnlyList<ThumbnailData> Thumbnails => Videos.FirstOrDefault()?.Thumbnails ?? [];
+    public IReadOnlyList<ThumbnailData> Thumbnails => Memo.Cache(this, () =>
+        Videos
+            .FirstOrDefault()?
+            .Thumbnails ??
 
-    [Lazy]
-    public IReadOnlyList<PlaylistVideoData> Videos =>
-        ContentRoot
-            ?.GetPropertyOrNull("contents")
-            ?.EnumerateArrayOrNull()
-            ?.Select(j => j.GetPropertyOrNull("playlistPanelVideoRenderer"))
+        Array.Empty<ThumbnailData>()
+    );
+
+    public IReadOnlyList<PlaylistVideoData> Videos => Memo.Cache(this, () =>
+        ContentRoot?
+            .GetPropertyOrNull("contents")?
+            .EnumerateArrayOrNull()?
+            .Select(j => j.GetPropertyOrNull("playlistPanelVideoRenderer"))
             .WhereNotNull()
             .Select(j => new PlaylistVideoData(j))
-            .ToArray() ?? [];
+            .ToArray() ??
 
-    [Lazy]
-    public string? VisitorData =>
-        content
-            .GetPropertyOrNull("responseContext")
-            ?.GetPropertyOrNull("visitorData")
-            ?.GetStringOrNull();
+        Array.Empty<PlaylistVideoData>()
+    );
+
+    public string? VisitorData => Memo.Cache(this, () =>
+        _content
+            .GetPropertyOrNull("responseContext")?
+            .GetPropertyOrNull("visitorData")?
+            .GetStringOrNull()
+    );
+
+    public PlaylistNextResponse(JsonElement content) => _content = content;
 }
 
 internal partial class PlaylistNextResponse

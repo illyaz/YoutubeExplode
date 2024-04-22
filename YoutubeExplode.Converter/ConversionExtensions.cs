@@ -20,21 +20,18 @@ public static class ConversionExtensions
     /// <summary>
     /// Checks whether the container is a known audio-only container.
     /// </summary>
-    [Obsolete("Use the Container.IsAudioOnly property instead."), ExcludeFromCodeCoverage]
+    [Obsolete("Use Container.IsAudioOnly instead."), ExcludeFromCodeCoverage]
     public static bool IsAudioOnly(this Container container) => container.IsAudioOnly;
 
     private static async IAsyncEnumerable<IStreamInfo> GetOptimalStreamInfosAsync(
         this VideoClient videoClient,
         VideoId videoId,
         Container container,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default
-    )
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var streamManifest = await videoClient.Streams.GetManifestAsync(videoId, cancellationToken);
 
-        if (
-            streamManifest.GetAudioOnlyStreams().Any() && streamManifest.GetVideoOnlyStreams().Any()
-        )
+        if (streamManifest.GetAudioOnlyStreams().Any() && streamManifest.GetVideoOnlyStreams().Any())
         {
             // Include audio stream
             // Priority: transcoding -> bitrate
@@ -76,8 +73,7 @@ public static class ConversionExtensions
         IReadOnlyList<ClosedCaptionTrackInfo> closedCaptionTrackInfos,
         ConversionRequest request,
         IProgress<double>? progress = null,
-        CancellationToken cancellationToken = default
-    )
+        CancellationToken cancellationToken = default)
     {
         var ffmpeg = new FFmpeg(request.FFmpegCliFilePath);
         var converter = new Converter(videoClient, ffmpeg, request.Preset);
@@ -100,37 +96,38 @@ public static class ConversionExtensions
         IReadOnlyList<IStreamInfo> streamInfos,
         ConversionRequest request,
         IProgress<double>? progress = null,
-        CancellationToken cancellationToken = default
-    ) => await videoClient.DownloadAsync(streamInfos, [], request, progress, cancellationToken);
-
-    /// <summary>
-    /// Resolves the most optimal media streams for the specified video, downloads them,
-    /// and processes into a single file.
-    /// </summary>
-    public static async ValueTask DownloadAsync(
-        this VideoClient videoClient,
-        VideoId videoId,
-        ConversionRequest request,
-        IProgress<double>? progress = null,
-        CancellationToken cancellationToken = default
-    ) =>
+        CancellationToken cancellationToken = default) =>
         await videoClient.DownloadAsync(
-            await videoClient.GetOptimalStreamInfosAsync(
-                videoId,
-                request.Container,
-                cancellationToken
-            ),
+            streamInfos,
+            Array.Empty<ClosedCaptionTrackInfo>(),
             request,
             progress,
             cancellationToken
         );
 
     /// <summary>
-    /// Resolves the most optimal media streams for the specified video, downloads them,
-    /// and processes into a single file.
+    /// Resolves the most optimal media streams for the specified video,
+    /// downloads them, and processes into a single file.
+    /// </summary>
+    public static async ValueTask DownloadAsync(
+        this VideoClient videoClient,
+        VideoId videoId,
+        ConversionRequest request,
+        IProgress<double>? progress = null,
+        CancellationToken cancellationToken = default) =>
+        await videoClient.DownloadAsync(
+            await videoClient.GetOptimalStreamInfosAsync(videoId, request.Container, cancellationToken),
+            request,
+            progress,
+            cancellationToken
+        );
+
+    /// <summary>
+    /// Resolves the most optimal media streams for the specified video,
+    /// downloads them, and processes into a single file.
     /// </summary>
     /// <remarks>
-    /// Output container is inferred from the file extension, unless explicitly specified.
+    /// Output container is derived from the file extension, unless explicitly specified.
     /// </remarks>
     public static async ValueTask DownloadAsync(
         this VideoClient videoClient,
@@ -138,8 +135,7 @@ public static class ConversionExtensions
         string outputFilePath,
         Action<ConversionRequestBuilder> configure,
         IProgress<double>? progress = null,
-        CancellationToken cancellationToken = default
-    )
+        CancellationToken cancellationToken = default)
     {
         var requestBuilder = new ConversionRequestBuilder(outputFilePath);
         configure(requestBuilder);
@@ -153,7 +149,7 @@ public static class ConversionExtensions
     /// downloads them, and processes into a single file.
     /// </summary>
     /// <remarks>
-    /// Output container is inferred from the file extension.
+    /// Output container is derived from the file extension.
     /// If none is specified, mp4 is chosen by default.
     /// </remarks>
     public static async ValueTask DownloadAsync(
@@ -161,13 +157,6 @@ public static class ConversionExtensions
         VideoId videoId,
         string outputFilePath,
         IProgress<double>? progress = null,
-        CancellationToken cancellationToken = default
-    ) =>
-        await videoClient.DownloadAsync(
-            videoId,
-            outputFilePath,
-            _ => { },
-            progress,
-            cancellationToken
-        );
+        CancellationToken cancellationToken = default) =>
+        await videoClient.DownloadAsync(videoId, outputFilePath, _ => { }, progress, cancellationToken);
 }

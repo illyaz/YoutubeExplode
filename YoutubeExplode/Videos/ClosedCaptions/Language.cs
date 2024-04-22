@@ -6,18 +6,26 @@ namespace YoutubeExplode.Videos.ClosedCaptions;
 /// <summary>
 /// Language information.
 /// </summary>
-public readonly partial struct Language(string code, string name)
+public readonly partial struct Language
 {
     /// <summary>
-    /// Two-letter or three-letter language code, possibly with a regional identifier
-    /// (e.g. 'en' or 'en-US' or 'eng').
+    /// ISO 639-1 code of the language.
     /// </summary>
-    public string Code { get; } = code;
+    public string Code { get; }
 
     /// <summary>
     /// Full international name of the language.
     /// </summary>
-    public string Name { get; } = name;
+    public string Name { get; }
+
+    /// <summary>
+    /// Initializes an instance of <see cref="Language" />.
+    /// </summary>
+    public Language(string code, string name)
+    {
+        Code = code;
+        Name = name;
+    }
 
     /// <inheritdoc />
     [ExcludeFromCodeCoverage]

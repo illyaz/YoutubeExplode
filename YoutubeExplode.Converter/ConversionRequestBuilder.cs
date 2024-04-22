@@ -9,14 +9,24 @@ namespace YoutubeExplode.Converter;
 /// <summary>
 /// Builder for <see cref="ConversionRequest" />.
 /// </summary>
-public class ConversionRequestBuilder(string outputFilePath)
+public class ConversionRequestBuilder
 {
+    private readonly string _outputFilePath;
+
     private string? _ffmpegCliFilePath;
     private Container? _container;
     private ConversionPreset _preset;
 
-    private Container GetDefaultContainer() =>
-        new(Path.GetExtension(outputFilePath).TrimStart('.').NullIfWhiteSpace() ?? "mp4");
+    /// <summary>
+    /// Initializes an instance of <see cref="ConversionRequestBuilder" />.
+    /// </summary>
+    public ConversionRequestBuilder(string outputFilePath) =>
+        _outputFilePath = outputFilePath;
+
+    private Container GetDefaultContainer() => new(
+        Path.GetExtension(_outputFilePath).TrimStart('.').NullIfWhiteSpace() ??
+        "mp4"
+    );
 
     /// <summary>
     /// Sets the path to the FFmpeg CLI.
@@ -53,7 +63,8 @@ public class ConversionRequestBuilder(string outputFilePath)
     /// Sets the conversion format.
     /// </summary>
     [Obsolete("Use SetContainer instead."), ExcludeFromCodeCoverage]
-    public ConversionRequestBuilder SetFormat(string format) => SetContainer(format);
+    public ConversionRequestBuilder SetFormat(string format) =>
+        SetContainer(format);
 
     /// <summary>
     /// Sets the conversion preset.
@@ -67,11 +78,10 @@ public class ConversionRequestBuilder(string outputFilePath)
     /// <summary>
     /// Builds the resulting request.
     /// </summary>
-    public ConversionRequest Build() =>
-        new(
-            _ffmpegCliFilePath ?? FFmpeg.GetFilePath(),
-            outputFilePath,
-            _container ?? GetDefaultContainer(),
-            _preset
-        );
+    public ConversionRequest Build() => new(
+        _ffmpegCliFilePath ?? FFmpeg.GetFilePath(),
+        _outputFilePath,
+        _container ?? GetDefaultContainer(),
+        _preset
+    );
 }

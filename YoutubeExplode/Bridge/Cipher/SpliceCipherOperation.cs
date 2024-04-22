@@ -2,10 +2,14 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace YoutubeExplode.Bridge.Cipher;
 
-internal class SpliceCipherOperation(int index) : ICipherOperation
+internal class SpliceCipherOperation : ICipherOperation
 {
-    public string Decipher(string input) => input[index..];
+    private readonly int _index;
+
+    public SpliceCipherOperation(int index) => _index = index;
+
+    public string Decipher(string input) => input[_index..];
 
     [ExcludeFromCodeCoverage]
-    public override string ToString() => $"Splice ({index})";
+    public override string ToString() => $"Splice ({_index})";
 }

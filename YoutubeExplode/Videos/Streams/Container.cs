@@ -5,13 +5,13 @@ namespace YoutubeExplode.Videos.Streams;
 /// <summary>
 /// Stream container.
 /// </summary>
-public readonly partial struct Container(string name)
+public readonly partial struct Container
 {
     /// <summary>
     /// Container name (e.g. mp4, webm, etc).
     /// Can be used as file extension.
     /// </summary>
-    public string Name { get; } = name;
+    public string Name { get; }
 
     /// <summary>
     /// Whether this container is a known audio-only container.
@@ -22,13 +22,18 @@ public readonly partial struct Container(string name)
     /// If the container IS NOT audio-only, it MAY contain video streams, but is not required to.
     /// </remarks>
     public bool IsAudioOnly =>
-        string.Equals(Name, "mp3", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(Name, "m4a", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(Name, "wav", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(Name, "wma", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(Name, "ogg", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(Name, "aac", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(Name, "opus", StringComparison.OrdinalIgnoreCase);
+        string.Equals(Name, "mp3", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(Name, "m4a", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(Name, "wav", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(Name, "wma", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(Name, "ogg", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(Name, "aac", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(Name, "opus", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Initializes an instance of <see cref="Container" />.
+    /// </summary>
+    public Container(string name) => Name = name;
 
     /// <inheritdoc />
     public override string ToString() => Name;
@@ -39,9 +44,6 @@ public partial struct Container
     /// <summary>
     /// MPEG-2 Audio Layer III (mp3).
     /// </summary>
-    /// <remarks>
-    /// YouTube does not natively provide streams in this container.
-    /// </remarks>
     public static Container Mp3 { get; } = new("mp3");
 
     /// <summary>
@@ -63,8 +65,7 @@ public partial struct Container
 public partial struct Container : IEquatable<Container>
 {
     /// <inheritdoc />
-    public bool Equals(Container other) =>
-        StringComparer.OrdinalIgnoreCase.Equals(Name, other.Name);
+    public bool Equals(Container other) => StringComparer.OrdinalIgnoreCase.Equals(Name, other.Name);
 
     /// <inheritdoc />
     public override bool Equals(object? obj) => obj is Container other && Equals(other);

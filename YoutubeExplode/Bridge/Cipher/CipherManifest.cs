@@ -3,11 +3,12 @@ using System.Linq;
 
 namespace YoutubeExplode.Bridge.Cipher;
 
-internal class CipherManifest(string signatureTimestamp, IReadOnlyList<ICipherOperation> operations)
+internal class CipherManifest
 {
-    public string SignatureTimestamp { get; } = signatureTimestamp;
+    private IReadOnlyList<ICipherOperation> Operations { get; }
 
-    public IReadOnlyList<ICipherOperation> Operations { get; } = operations;
+    public CipherManifest(IReadOnlyList<ICipherOperation> operations) =>
+        Operations = operations;
 
     public string Decipher(string input) =>
         Operations.Aggregate(input, (acc, op) => op.Decipher(acc));

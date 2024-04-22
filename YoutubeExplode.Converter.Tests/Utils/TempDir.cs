@@ -5,9 +5,12 @@ using PathEx = System.IO.Path;
 
 namespace YoutubeExplode.Converter.Tests.Utils;
 
-internal partial class TempDir(string path) : IDisposable
+internal partial class TempDir : IDisposable
 {
-    public string Path { get; } = path;
+    public string Path { get; }
+
+    public TempDir(string path) =>
+        Path = path;
 
     public void Dispose()
     {
@@ -15,7 +18,9 @@ internal partial class TempDir(string path) : IDisposable
         {
             Directory.Delete(Path, true);
         }
-        catch (DirectoryNotFoundException) { }
+        catch (DirectoryNotFoundException)
+        {
+        }
     }
 }
 
@@ -24,8 +29,7 @@ internal partial class TempDir
     public static TempDir Create()
     {
         var dirPath = PathEx.Combine(
-            PathEx.GetDirectoryName(Assembly.GetExecutingAssembly().Location)
-                ?? Directory.GetCurrentDirectory(),
+            PathEx.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? Directory.GetCurrentDirectory(),
             "Temp",
             Guid.NewGuid().ToString()
         );

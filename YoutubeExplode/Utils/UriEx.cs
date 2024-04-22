@@ -7,11 +7,13 @@ using YoutubeExplode.Utils.Extensions;
 
 namespace YoutubeExplode.Utils;
 
-internal static class UrlEx
+internal static class UriEx
 {
     private static IEnumerable<KeyValuePair<string, string>> EnumerateQueryParameters(string url)
     {
-        var query = url.Contains('?') ? url.SubstringAfter("?") : url;
+        var query = url.Contains('?')
+            ? url.SubstringAfter("?")
+            : url;
 
         foreach (var parameter in query.Split('&'))
         {
@@ -58,7 +60,11 @@ internal static class UrlEx
             if (string.Equals(parameter.Key, key, StringComparison.Ordinal))
                 continue;
 
-            queryBuilder.Append(queryBuilder.Length > 0 ? '&' : '?');
+            queryBuilder.Append(
+                queryBuilder.Length > 0
+                    ? '&'
+                    : '?'
+            );
 
             queryBuilder.Append(WebUtility.UrlEncode(parameter.Key));
             queryBuilder.Append('=');
@@ -75,10 +81,11 @@ internal static class UrlEx
         var urlWithoutParameter = RemoveQueryParameter(url, key);
         var hasOtherParameters = urlWithoutParameter.Contains('?');
 
-        return urlWithoutParameter
-            + (hasOtherParameters ? '&' : '?')
-            + WebUtility.UrlEncode(key)
-            + '='
-            + WebUtility.UrlEncode(value);
+        return
+            urlWithoutParameter +
+            (hasOtherParameters ? '&' : '?') +
+            WebUtility.UrlEncode(key) +
+            '=' +
+            WebUtility.UrlEncode(value);
     }
 }

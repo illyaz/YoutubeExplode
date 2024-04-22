@@ -4,111 +4,78 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using AngleSharp.Dom;
 using AngleSharp.Html.Dom;
-using Lazy;
 using YoutubeExplode.Utils;
 using YoutubeExplode.Utils.Extensions;
 
 namespace YoutubeExplode.Bridge;
 
-internal partial class VideoWatchPage(IHtmlDocument content)
+internal partial class VideoWatchPage
 {
-    [Lazy]
-    public bool IsAvailable => content.QuerySelector("meta[property=\"og:url\"]") is not null;
+    private readonly IHtmlDocument _content;
 
-    [Lazy]
-    public DateTimeOffset? UploadDate =>
-        content
-            .QuerySelector("meta[itemprop=\"uploadDate\"]")
-            ?.GetAttribute("content")
-            ?.NullIfWhiteSpace()
-            ?.ParseDateTimeOffsetOrNull()
-        ?? content
-            .QuerySelector("meta[itemprop=\"datePublished\"]")
-            ?.GetAttribute("content")
-            ?.NullIfWhiteSpace()
-            ?.ParseDateTimeOffsetOrNull();
+    public bool IsAvailable => Memo.Cache(this, () =>
+        _content.QuerySelector("meta[property=\"og:url\"]") is not null
+    );
 
-    [Lazy]
-    public long? LikeCount =>
-        content
-            .Source.Text.Pipe(s =>
-                Regex
-                    .Match(
-                        s,
-                        """
-                        "\s*:\s*"([\d,\.]+) likes"
-                        """
-                    )
-                    .Groups[1]
-                    .Value
-            )
-            .NullIfWhiteSpace()
-            ?.StripNonDigit()
+    public DateTimeOffset? UploadDate => Memo.Cache(this, () =>
+        _content
+            .QuerySelector("meta[itemprop=\"datePublished\"]")?
+            .GetAttribute("content")?
+            .NullIfWhiteSpace()?
+            .ParseDateTimeOffsetOrNull(new[] { @"yyyy-MM-dd" })
+    );
+
+    public long? LikeCount => Memo.Cache(this, () =>
+        _content
+            .Source
+            .Text
+            .Pipe(s => Regex.Match(s, @"""label""\s*:\s*""([\d,\.]+) likes""").Groups[1].Value)
+            .NullIfWhiteSpace()?
+            .StripNonDigit()
             .ParseLongOrNull()
-        ?? content
-            .Source.Text.Pipe(s =>
-                Regex
-                    .Match(
-                        s,
-                        """
-                        along with ([\d,\.]+) other people"
-                        """
-                    )
-                    .Groups[1]
-                    .Value
-            )
-            .NullIfWhiteSpace()
-            ?.StripNonDigit()
-            .ParseLongOrNull();
+    );
 
-    [Lazy]
-    public long? DislikeCount =>
-        content
-            .Source.Text.Pipe(s =>
-                Regex
-                    .Match(
-                        s,
-                        """
-                        "\s*:\s*"([\d,\.]+) dislikes"
-                        """
-                    )
-                    .Groups[1]
-                    .Value
-            )
-            .NullIfWhiteSpace()
-            ?.StripNonDigit()
-            .ParseLongOrNull();
+    public long? DislikeCount => Memo.Cache(this, () =>
+        _content
+            .Source
+            .Text
+            .Pipe(s => Regex.Match(s, @"""label""\s*:\s*""([\d,\.]+) dislikes""").Groups[1].Value)
+            .NullIfWhiteSpace()?
+            .StripNonDigit()
+            .ParseLongOrNull()
+    );
 
-    [Lazy]
-    private JsonElement? PlayerConfig =>
-        content
+    private JsonElement? PlayerConfig => Memo.Cache(this, () =>
+        _content
             .GetElementsByTagName("script")
             .Select(e => e.Text())
             .Select(s => Regex.Match(s, @"ytplayer\.config\s*=\s*(\{.*\})").Groups[1].Value)
-            .FirstOrDefault(s => !string.IsNullOrWhiteSpace(s))
-            ?.NullIfWhiteSpace()
-            ?.Pipe(Json.Extract)
-            .Pipe(Json.TryParse);
+            .FirstOrDefault(s => !string.IsNullOrWhiteSpace(s))?
+            .NullIfWhiteSpace()?
+            .Pipe(Json.Extract)
+            .Pipe(Json.TryParse)
+    );
 
-    [Lazy]
-    public PlayerResponse? PlayerResponse =>
-        content
+    public PlayerResponse? PlayerResponse => Memo.Cache(this, () =>
+        _content
             .GetElementsByTagName("script")
             .Select(e => e.Text())
-            .Select(s =>
-                Regex.Match(s, @"var\s+ytInitialPlayerResponse\s*=\s*(\{.*\})").Groups[1].Value
-            )
-            .FirstOrDefault(s => !string.IsNullOrWhiteSpace(s))
-            ?.NullIfWhiteSpace()
-            ?.Pipe(Json.Extract)
-            .Pipe(Json.TryParse)
-            ?.Pipe(j => new PlayerResponse(j))
-        ?? PlayerConfig
-            ?.GetPropertyOrNull("args")
-            ?.GetPropertyOrNull("player_response")
-            ?.GetStringOrNull()
-            ?.Pipe(Json.TryParse)
-            ?.Pipe(j => new PlayerResponse(j));
+            .Select(s => Regex.Match(s, @"var\s+ytInitialPlayerResponse\s*=\s*(\{.*\})").Groups[1].Value)
+            .FirstOrDefault(s => !string.IsNullOrWhiteSpace(s))?
+            .NullIfWhiteSpace()?
+            .Pipe(Json.Extract)
+            .Pipe(Json.TryParse)?
+            .Pipe(j => new PlayerResponse(j)) ??
+
+        PlayerConfig?
+            .GetPropertyOrNull("args")?
+            .GetPropertyOrNull("player_response")?
+            .GetStringOrNull()?
+            .Pipe(Json.TryParse)?
+            .Pipe(j => new PlayerResponse(j))
+    );
+
+    public VideoWatchPage(IHtmlDocument content) => _content = content;
 }
 
 internal partial class VideoWatchPage

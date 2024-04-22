@@ -7,21 +7,20 @@ using YoutubeExplode.Videos;
 
 namespace YoutubeExplode.Playlists;
 
-internal class PlaylistController(HttpClient http)
+internal class PlaylistController
 {
+    private readonly HttpClient _http;
+
+    public PlaylistController(HttpClient http) => _http = http;
+
     // Works only with user-made playlists
     public async ValueTask<PlaylistBrowseResponse> GetPlaylistBrowseResponseAsync(
         PlaylistId playlistId,
-        CancellationToken cancellationToken = default
-    )
+        CancellationToken cancellationToken = default)
     {
-        using var request = new HttpRequestMessage(
-            HttpMethod.Post,
-            "https://www.youtube.com/youtubei/v1/browse"
-        )
+        using var request = new HttpRequestMessage(HttpMethod.Post, "https://www.youtube.com/youtubei/v1/browse")
         {
             Content = new StringContent(
-                // lang=json
                 $$"""
                 {
                     "browseId": "VL{{playlistId}}",
@@ -39,7 +38,7 @@ internal class PlaylistController(HttpClient http)
             )
         };
 
-        using var response = await http.SendAsync(request, cancellationToken);
+        using var response = await _http.SendAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
 
         var playlistResponse = PlaylistBrowseResponse.Parse(
@@ -58,18 +57,13 @@ internal class PlaylistController(HttpClient http)
         VideoId? videoId = null,
         int index = 0,
         string? visitorData = null,
-        CancellationToken cancellationToken = default
-    )
+        CancellationToken cancellationToken = default)
     {
-        for (var retriesRemaining = 5; ; retriesRemaining--)
+        for (var retriesRemaining = 5;; retriesRemaining--)
         {
-            using var request = new HttpRequestMessage(
-                HttpMethod.Post,
-                "https://www.youtube.com/youtubei/v1/next"
-            )
+            using var request = new HttpRequestMessage(HttpMethod.Post, "https://www.youtube.com/youtubei/v1/next?fields=responseContext.visitorData,contents.twoColumnWatchNextResults.playlist.playlist.contents.playlistPanelVideoRenderer(navigationEndpoint.watchEndpoint.index,videoId,title(simpleText,runs.text),longBylineText.runs(text,navigationEndpoint.browseEndpoint.browseId),lengthText(simpleText,runs.text),thumbnail)")
             {
                 Content = new StringContent(
-                    // lang=json
                     $$"""
                     {
                         "playlistId": "{{playlistId}}",
@@ -90,7 +84,7 @@ internal class PlaylistController(HttpClient http)
                 )
             };
 
-            using var response = await http.SendAsync(request, cancellationToken);
+            using var response = await _http.SendAsync(request, cancellationToken);
             response.EnsureSuccessStatusCode();
 
             var playlistResponse = PlaylistNextResponse.Parse(
@@ -104,9 +98,7 @@ internal class PlaylistController(HttpClient http)
                 if (index > 0 && !string.IsNullOrWhiteSpace(visitorData) && retriesRemaining > 0)
                     continue;
 
-                throw new PlaylistUnavailableException(
-                    $"Playlist '{playlistId}' is not available."
-                );
+                throw new PlaylistUnavailableException($"Playlist '{playlistId}' is not available.");
             }
 
             return playlistResponse;
@@ -115,8 +107,7 @@ internal class PlaylistController(HttpClient http)
 
     public async ValueTask<IPlaylistData> GetPlaylistResponseAsync(
         PlaylistId playlistId,
-        CancellationToken cancellationToken = default
-    )
+        CancellationToken cancellationToken = default)
     {
         try
         {

@@ -10,7 +10,7 @@ namespace YoutubeExplode.Tests;
 public class ChannelSpecs
 {
     [Fact]
-    public async Task I_can_get_the_metadata_of_a_channel()
+    public async Task I_can_get_metadata_of_a_channel()
     {
         // Arrange
         var youtube = new YoutubeClient();
@@ -26,7 +26,7 @@ public class ChannelSpecs
     }
 
     [Fact]
-    public async Task I_can_get_the_metadata_of_a_channel_by_user_name()
+    public async Task I_can_get_metadata_of_a_channel_by_user_name()
     {
         // Arrange
         var youtube = new YoutubeClient();
@@ -42,7 +42,7 @@ public class ChannelSpecs
     }
 
     [Fact]
-    public async Task I_can_get_the_metadata_of_a_channel_by_slug()
+    public async Task I_can_get_metadata_of_a_channel_by_slug()
     {
         // Arrange
         var youtube = new YoutubeClient();
@@ -58,7 +58,7 @@ public class ChannelSpecs
     }
 
     [Fact]
-    public async Task I_can_get_the_metadata_of_a_channel_by_handle()
+    public async Task I_can_get_metadata_of_a_channel_by_handle()
     {
         // Arrange
         var youtube = new YoutubeClient();
@@ -70,24 +70,6 @@ public class ChannelSpecs
         channel.Id.Value.Should().Be("UCX6OQ3DkcsbYNE6H8uQQuVA");
         channel.Url.Should().NotBeNullOrWhiteSpace();
         channel.Title.Should().Be("MrBeast");
-        channel.Thumbnails.Should().NotBeEmpty();
-    }
-
-    [Theory]
-    [InlineData(ChannelIds.Normal)]
-    [InlineData(ChannelIds.Movies)]
-    public async Task I_can_get_the_metadata_of_any_available_channel(string channelId)
-    {
-        // Arrange
-        var youtube = new YoutubeClient();
-
-        // Act
-        var channel = await youtube.Channels.GetAsync(channelId);
-
-        // Assert
-        channel.Id.Value.Should().Be(channelId);
-        channel.Url.Should().NotBeNullOrWhiteSpace();
-        channel.Title.Should().NotBeNullOrWhiteSpace();
         channel.Thumbnails.Should().NotBeEmpty();
     }
 

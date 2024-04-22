@@ -9,12 +9,14 @@ namespace YoutubeExplode.Channels;
 /// <summary>
 /// Represents a syntactically valid YouTube channel slug.
 /// </summary>
-public readonly partial struct ChannelSlug(string value)
+public readonly partial struct ChannelSlug
 {
     /// <summary>
     /// Raw slug value.
     /// </summary>
-    public string Value { get; } = value;
+    public string Value { get; }
+
+    private ChannelSlug(string value) => Value = value;
 
     /// <inheritdoc />
     public override string ToString() => Value;
@@ -22,27 +24,29 @@ public readonly partial struct ChannelSlug(string value)
 
 public readonly partial struct ChannelSlug
 {
-    private static bool IsValid(string channelSlug) => channelSlug.All(char.IsLetterOrDigit);
+    private static bool IsValid(string channelSlug) =>
+        channelSlug.All(char.IsLetterOrDigit);
 
     private static string? TryNormalize(string? channelSlugOrUrl)
     {
         if (string.IsNullOrWhiteSpace(channelSlugOrUrl))
             return null;
 
-        // Check if already passed a slug
+        // Slug
         // Tyrrrz
         if (IsValid(channelSlugOrUrl))
             return channelSlugOrUrl;
 
-        // Try to extract the slug from the URL
+        // URL
         // https://www.youtube.com/c/Tyrrrz
-        var slug = Regex
+        var regularMatch = Regex
             .Match(channelSlugOrUrl, @"youtube\..+?/c/(.*?)(?:\?|&|/|$)")
             .Groups[1]
-            .Value.Pipe(WebUtility.UrlDecode);
+            .Value
+            .Pipe(WebUtility.UrlDecode);
 
-        if (!string.IsNullOrWhiteSpace(slug) && IsValid(slug))
-            return slug;
+        if (!string.IsNullOrWhiteSpace(regularMatch) && IsValid(regularMatch))
+            return regularMatch;
 
         // Invalid input
         return null;
@@ -59,10 +63,8 @@ public readonly partial struct ChannelSlug
     /// Parses the specified string as a YouTube channel slug or legacy custom url.
     /// </summary>
     public static ChannelSlug Parse(string channelSlugOrUrl) =>
-        TryParse(channelSlugOrUrl)
-        ?? throw new ArgumentException(
-            $"Invalid YouTube channel slug or legacy custom URL '{channelSlugOrUrl}'."
-        );
+        TryParse(channelSlugOrUrl) ??
+        throw new ArgumentException($"Invalid YouTube channel slug or legacy custom URL '{channelSlugOrUrl}'.");
 
     /// <summary>
     /// Converts string to channel slug.

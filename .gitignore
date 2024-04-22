@@ -1,12 +1,25 @@
 # User-specific files
-.vs/
-.idea/
 *.suo
 *.user
+*.userosscache
+*.sln.docstates
+.idea/
+
 
 # Build results
-bin/
-obj/
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+[Xx]64/
+[Xx]86/
+[Bb]uild/
+bld/
+[Bb]in/
+[Oo]bj/
 
-# Test results
-TestResults/
+# Coverage
+*.opencover.xml
+
+#Visual studio cache/options directory
+.vs/

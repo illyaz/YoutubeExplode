@@ -9,12 +9,14 @@ namespace YoutubeExplode.Channels;
 /// <summary>
 /// Represents a syntactically valid YouTube user name.
 /// </summary>
-public readonly partial struct UserName(string value)
+public readonly partial struct UserName
 {
     /// <summary>
     /// Raw user name value.
     /// </summary>
-    public string Value { get; } = value;
+    public string Value { get; }
+
+    private UserName(string value) => Value = value;
 
     /// <inheritdoc />
     public override string ToString() => Value;
@@ -23,27 +25,29 @@ public readonly partial struct UserName(string value)
 public partial struct UserName
 {
     private static bool IsValid(string userName) =>
-        userName.Length <= 20 && userName.All(char.IsLetterOrDigit);
+        userName.Length <= 20 &&
+        userName.All(char.IsLetterOrDigit);
 
     private static string? TryNormalize(string? userNameOrUrl)
     {
         if (string.IsNullOrWhiteSpace(userNameOrUrl))
             return null;
 
-        // Check if already passed a user name
+        // Name
         // TheTyrrr
         if (IsValid(userNameOrUrl))
             return userNameOrUrl;
 
-        // Try to extract the user name from the URL
+        // URL
         // https://www.youtube.com/user/TheTyrrr
-        var userName = Regex
+        var regularMatch = Regex
             .Match(userNameOrUrl, @"youtube\..+?/user/(.*?)(?:\?|&|/|$)")
             .Groups[1]
-            .Value.Pipe(WebUtility.UrlDecode);
+            .Value
+            .Pipe(WebUtility.UrlDecode);
 
-        if (!string.IsNullOrWhiteSpace(userName) && IsValid(userName))
-            return userName;
+        if (!string.IsNullOrWhiteSpace(regularMatch) && IsValid(regularMatch))
+            return regularMatch;
 
         // Invalid input
         return null;
@@ -60,10 +64,8 @@ public partial struct UserName
     /// Parses the specified string as a YouTube user name or profile URL.
     /// </summary>
     public static UserName Parse(string userNameOrUrl) =>
-        TryParse(userNameOrUrl)
-        ?? throw new ArgumentException(
-            $"Invalid YouTube user name or profile URL '{userNameOrUrl}'."
-        );
+        TryParse(userNameOrUrl) ??
+        throw new ArgumentException($"Invalid YouTube user name or profile URL '{userNameOrUrl}'.");
 
     /// <summary>
     /// Converts string to user name.
