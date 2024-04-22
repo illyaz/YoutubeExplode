@@ -1,24 +1,17 @@
 ﻿using System.Text.Json;
-using YoutubeExplode.Utils;
+using Lazy;
 using YoutubeExplode.Utils.Extensions;
 
 namespace YoutubeExplode.Bridge;
 
-internal class ThumbnailData
+internal class ThumbnailData(JsonElement content)
 {
-    private readonly JsonElement _content;
+    [Lazy]
+    public string? Url => content.GetPropertyOrNull("url")?.GetStringOrNull();
 
-    public ThumbnailData(JsonElement content) => _content = content;
+    [Lazy]
+    public int? Width => content.GetPropertyOrNull("width")?.GetInt32OrNull();
 
-    public string? Url => Memo.Cache(this, () =>
-        _content.GetPropertyOrNull("url")?.GetStringOrNull()
-    );
-
-    public int? Width => Memo.Cache(this, () =>
-        _content.GetPropertyOrNull("width")?.GetInt32OrNull()
-    );
-
-    public int? Height => Memo.Cache(this, () =>
-        _content.GetPropertyOrNull("height")?.GetInt32OrNull()
-    );
+    [Lazy]
+    public int? Height => content.GetPropertyOrNull("height")?.GetInt32OrNull();
 }

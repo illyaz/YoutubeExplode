@@ -5,20 +5,14 @@ using System.Linq;
 namespace YoutubeExplode.Videos.ClosedCaptions;
 
 /// <summary>
-/// Describes available closed caption tracks for a YouTube video.
+/// Describes closed caption tracks available for a YouTube video.
 /// </summary>
-public class ClosedCaptionManifest
+public class ClosedCaptionManifest(IReadOnlyList<ClosedCaptionTrackInfo> tracks)
 {
     /// <summary>
     /// Available closed caption tracks.
     /// </summary>
-    public IReadOnlyList<ClosedCaptionTrackInfo> Tracks { get; }
-
-    /// <summary>
-    /// Initializes an instance of <see cref="ClosedCaptionManifest" />.
-    /// </summary>
-    public ClosedCaptionManifest(IReadOnlyList<ClosedCaptionTrackInfo> tracks) =>
-        Tracks = tracks;
+    public IReadOnlyList<ClosedCaptionTrackInfo> Tracks { get; } = tracks;
 
     /// <summary>
     /// Gets the closed caption track in the specified language (identified by ISO-639-1 code or display name).
@@ -26,14 +20,16 @@ public class ClosedCaptionManifest
     /// </summary>
     public ClosedCaptionTrackInfo? TryGetByLanguage(string language) =>
         Tracks.FirstOrDefault(t =>
-            string.Equals(t.Language.Code, language, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(t.Language.Name, language, StringComparison.OrdinalIgnoreCase)
+            string.Equals(t.Language.Code, language, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(t.Language.Name, language, StringComparison.OrdinalIgnoreCase)
         );
 
     /// <summary>
     /// Gets the closed caption track in the specified language (identified by ISO-639-1 code or display name).
     /// </summary>
     public ClosedCaptionTrackInfo GetByLanguage(string language) =>
-        TryGetByLanguage(language) ??
-        throw new InvalidOperationException($"No closed caption track available for language '{language}'.");
+        TryGetByLanguage(language)
+        ?? throw new InvalidOperationException(
+            $"No closed caption track available for language '{language}'."
+        );
 }

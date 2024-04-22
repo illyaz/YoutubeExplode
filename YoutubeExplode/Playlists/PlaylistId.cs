@@ -9,14 +9,12 @@ namespace YoutubeExplode.Playlists;
 /// <summary>
 /// Represents a syntactically valid YouTube playlist ID.
 /// </summary>
-public readonly partial struct PlaylistId
+public readonly partial struct PlaylistId(string value)
 {
     /// <summary>
     /// Raw ID value.
     /// </summary>
-    public string Value { get; }
-
-    private PlaylistId(string value) => Value = value;
+    public string Value { get; } = value;
 
     /// <inheritdoc />
     public override string ToString() => Value;
@@ -25,64 +23,67 @@ public readonly partial struct PlaylistId
 public partial struct PlaylistId
 {
     private static bool IsValid(string playlistId) =>
-        // "Watch later" and "My mix" playlists are special
-        playlistId is "WL" or "RDMM" ||
-        playlistId.Length >= 13 &&
-        playlistId.All(c => char.IsLetterOrDigit(c) || c is '_' or '-');
+        // Playlist IDs vary greatly in length, but they are at least 2 characters long
+        playlistId.Length >= 2
+        && playlistId.All(c => char.IsLetterOrDigit(c) || c is '_' or '-');
 
     private static string? TryNormalize(string? playlistIdOrUrl)
     {
         if (string.IsNullOrWhiteSpace(playlistIdOrUrl))
             return null;
 
-        // Id
+        // Check if already passed an ID
         // PLOU2XLYxmsIJGErt5rrCqaSGTMyyqNt2H
         if (IsValid(playlistIdOrUrl))
             return playlistIdOrUrl;
 
-        // Regular URL
+        // Try to extract the ID from the URL
         // https://www.youtube.com/playlist?list=PLOU2XLYxmsIJGErt5rrCqaSGTMyyqNt2H
-        var regularMatch = Regex
-            .Match(playlistIdOrUrl, @"youtube\..+?/playlist.*?list=(.*?)(?:&|/|$)")
-            .Groups[1]
-            .Value
-            .Pipe(WebUtility.UrlDecode);
+        {
+            var id = Regex
+                .Match(playlistIdOrUrl, @"youtube\..+?/playlist.*?list=(.*?)(?:&|/|$)")
+                .Groups[1]
+                .Value.Pipe(WebUtility.UrlDecode);
 
-        if (!string.IsNullOrWhiteSpace(regularMatch) && IsValid(regularMatch))
-            return regularMatch;
+            if (!string.IsNullOrWhiteSpace(id) && IsValid(id))
+                return id;
+        }
 
-        // Composite URL (video + playlist)
+        // Try to extract the ID from the URL (playlist + video)
         // https://www.youtube.com/watch?v=b8m9zhNAgKs&list=PL9tY0BWXOZFuFEG_GtOBZ8-8wbkH-NVAr
-        var compositeMatch = Regex
-            .Match(playlistIdOrUrl, @"youtube\..+?/watch.*?list=(.*?)(?:&|/|$)")
-            .Groups[1]
-            .Value
-            .Pipe(WebUtility.UrlDecode);
+        {
+            var id = Regex
+                .Match(playlistIdOrUrl, @"youtube\..+?/watch.*?list=(.*?)(?:&|/|$)")
+                .Groups[1]
+                .Value.Pipe(WebUtility.UrlDecode);
 
-        if (!string.IsNullOrWhiteSpace(compositeMatch) && IsValid(compositeMatch))
-            return compositeMatch;
+            if (!string.IsNullOrWhiteSpace(id) && IsValid(id))
+                return id;
+        }
 
-        // Short composite URL (video + playlist)
+        // Try to extract the ID from the URL (playlist + video, shortened)
         // https://youtu.be/b8m9zhNAgKs/?list=PL9tY0BWXOZFuFEG_GtOBZ8-8wbkH-NVAr
-        var shortCompositeMatch = Regex
-            .Match(playlistIdOrUrl, @"youtu\.be/.*?/.*?list=(.*?)(?:&|/|$)")
-            .Groups[1]
-            .Value
-            .Pipe(WebUtility.UrlDecode);
+        {
+            var id = Regex
+                .Match(playlistIdOrUrl, @"youtu\.be/.*?/.*?list=(.*?)(?:&|/|$)")
+                .Groups[1]
+                .Value.Pipe(WebUtility.UrlDecode);
 
-        if (!string.IsNullOrWhiteSpace(shortCompositeMatch) && IsValid(shortCompositeMatch))
-            return shortCompositeMatch;
+            if (!string.IsNullOrWhiteSpace(id) && IsValid(id))
+                return id;
+        }
 
-        // Embed URL
+        // Try to extract the ID from the URL (playlist + video, embedded)
         // https://www.youtube.com/embed/b8m9zhNAgKs/?list=PL9tY0BWXOZFuFEG_GtOBZ8-8wbkH-NVAr
-        var embedCompositeMatch = Regex
-            .Match(playlistIdOrUrl, @"youtube\..+?/embed/.*?/.*?list=(.*?)(?:&|/|$)")
-            .Groups[1]
-            .Value
-            .Pipe(WebUtility.UrlDecode);
+        {
+            var id = Regex
+                .Match(playlistIdOrUrl, @"youtube\..+?/embed/.*?/.*?list=(.*?)(?:&|/|$)")
+                .Groups[1]
+                .Value.Pipe(WebUtility.UrlDecode);
 
-        if (!string.IsNullOrWhiteSpace(embedCompositeMatch) && IsValid(embedCompositeMatch))
-            return embedCompositeMatch;
+            if (!string.IsNullOrWhiteSpace(id) && IsValid(id))
+                return id;
+        }
 
         // Invalid input
         return null;
@@ -99,8 +100,8 @@ public partial struct PlaylistId
     /// Parses the specified string as a YouTube playlist ID or URL.
     /// </summary>
     public static PlaylistId Parse(string playlistIdOrUrl) =>
-        TryParse(playlistIdOrUrl) ??
-        throw new ArgumentException($"Invalid YouTube playlist ID or URL '{playlistIdOrUrl}'.");
+        TryParse(playlistIdOrUrl)
+        ?? throw new ArgumentException($"Invalid YouTube playlist ID or URL '{playlistIdOrUrl}'.");
 
     /// <summary>
     /// Converts string to ID.

@@ -13,48 +13,47 @@ using YoutubeExplode.Videos.Streams;
 
 namespace YoutubeExplode.Converter;
 
-internal partial class Converter
+internal partial class Converter(VideoClient videoClient, FFmpeg ffmpeg, ConversionPreset preset)
 {
-    private readonly VideoClient _videoClient;
-    private readonly FFmpeg _ffmpeg;
-    private readonly ConversionPreset _preset;
-
-    public Converter(VideoClient videoClient, FFmpeg ffmpeg, ConversionPreset preset)
-    {
-        _videoClient = videoClient;
-        _ffmpeg = ffmpeg;
-        _preset = preset;
-    }
-
     private async ValueTask ProcessAsync(
         string filePath,
         Container container,
         IReadOnlyList<StreamInput> streamInputs,
         IReadOnlyList<SubtitleInput> subtitleInputs,
         IProgress<double>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         var arguments = new ArgumentsBuilder();
 
         // Stream inputs
         foreach (var streamInput in streamInputs)
+        {
             arguments.Add("-i").Add(streamInput.FilePath);
+        }
 
         // Subtitle inputs
         foreach (var subtitleInput in subtitleInputs)
-            arguments.Add("-i").Add(subtitleInput.FilePath);
+        {
+            arguments
+                // Fix invalid subtitle durations for each input
+                // https://github.com/Tyrrrz/YoutubeExplode/issues/756
+                .Add("-fix_sub_duration")
+                .Add("-i")
+                .Add(subtitleInput.FilePath);
+        }
 
-        // Input mapping
+        // Explicitly specify that all inputs should be used, because by default
+        // FFmpeg only picks one input per stream type (audio, video, subtitle).
         for (var i = 0; i < streamInputs.Count + subtitleInputs.Count; i++)
+        {
             arguments.Add("-map").Add(i);
+        }
 
-        // Format
-        arguments.Add("-f").Add(container.Name);
+        // Output format and encoding preset
+        arguments.Add("-f").Add(container.Name).Add("-preset").Add(preset);
 
-        // Preset
-        arguments.Add("-preset").Add(_preset);
-
-        // Avoid transcoding where possible
+        // Avoid transcoding inputs that have the same container as the output
         {
             var lastAudioStreamIndex = 0;
             var lastVideoStreamIndex = 0;
@@ -66,9 +65,7 @@ internal partial class Converter
                 {
                     if (audioStreamInfo.Container == container)
                     {
-                        arguments
-                            .Add($"-c:a:{lastAudioStreamIndex}")
-                            .Add("copy");
+                        arguments.Add($"-c:a:{lastAudioStreamIndex}").Add("copy");
                     }
 
                     lastAudioStreamIndex++;
@@ -78,9 +75,7 @@ internal partial class Converter
                 {
                     if (videoStreamInfo.Container == container)
                     {
-                        arguments
-                            .Add($"-c:v:{lastVideoStreamIndex}")
-                            .Add("copy");
+                        arguments.Add($"-c:v:{lastVideoStreamIndex}").Add("copy");
                     }
 
                     lastVideoStreamIndex++;
@@ -88,11 +83,14 @@ internal partial class Converter
             }
         }
 
-        // MP4: specify the codec for subtitles manually, otherwise they may not get injected
+        // MP4: explicitly specify the codec for subtitles, otherwise they won't get embedded
         if (container == Container.Mp4 && subtitleInputs.Any())
+        {
             arguments.Add("-c:s").Add("mov_text");
+        }
 
-        // MP3: set constant bitrate for audio streams, otherwise the metadata may contain invalid total duration
+        // MP3: explicitly specify the bitrate for audio streams, otherwise their metadata
+        // might contain invalid total duration.
         // https://superuser.com/a/893044
         if (container == Container.Mp3)
         {
@@ -127,31 +125,48 @@ internal partial class Converter
                 {
                     arguments
                         .Add($"-metadata:s:v:{lastVideoStreamIndex++}")
-                        .Add($"title={videoStreamInfo.VideoQuality.Label} | {videoStreamInfo.Bitrate}");
+                        .Add(
+                            $"title={videoStreamInfo.VideoQuality.Label} | {videoStreamInfo.Bitrate}"
+                        );
                 }
             }
         }
 
         // Metadata for subtitles
-        for (var i = 0; i < subtitleInputs.Count; i++)
+        foreach (var (subtitleInput, i) in subtitleInputs.WithIndex())
         {
+            // Language codes can be stored in any format, but most players expect
+            // three-letter codes, so we'll try to convert to that first.
+            var languageCode =
+                subtitleInput.Info.Language.TryGetThreeLetterCode()
+                ?? subtitleInput.Info.Language.Code;
+
             arguments
                 .Add($"-metadata:s:s:{i}")
-                .Add($"language={subtitleInputs[i].Info.Language.Code}")
+                .Add($"language={languageCode}")
                 .Add($"-metadata:s:s:{i}")
-                .Add($"title={subtitleInputs[i].Info.Language.Name}");
+                .Add($"title={subtitleInput.Info.Language.Name}");
         }
+
+        // Enable progress reporting
+        arguments
+            // Info log level is required to extract total stream duration
+            .Add("-loglevel")
+            .Add("info")
+            .Add("-stats");
 
         // Misc settings
         arguments
-            .Add("-threads").Add(Environment.ProcessorCount)
+            .Add("-hide_banner")
+            .Add("-threads")
+            .Add(Environment.ProcessorCount)
             .Add("-nostdin")
             .Add("-y");
 
         // Output
         arguments.Add(filePath);
 
-        await _ffmpeg.ExecuteAsync(arguments.Build(), progress, cancellationToken);
+        await ffmpeg.ExecuteAsync(arguments.Build(), progress, cancellationToken);
     }
 
     private async ValueTask PopulateStreamInputsAsync(
@@ -159,10 +174,13 @@ internal partial class Converter
         IReadOnlyList<IStreamInfo> streamInfos,
         ICollection<StreamInput> streamInputs,
         IProgress<double>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         var progressMuxer = progress?.Pipe(p => new ProgressMuxer(p));
-        var progresses = streamInfos.Select(s => progressMuxer?.CreateInput(s.Size.MegaBytes)).ToArray();
+        var progresses = streamInfos
+            .Select(s => progressMuxer?.CreateInput(s.Size.MegaBytes))
+            .ToArray();
 
         var lastIndex = 0;
 
@@ -175,7 +193,7 @@ internal partial class Converter
 
             streamInputs.Add(streamInput);
 
-            await _videoClient.Streams.DownloadAsync(
+            await videoClient.Streams.DownloadAsync(
                 streamInfo,
                 streamInput.FilePath,
                 streamProgress,
@@ -191,10 +209,13 @@ internal partial class Converter
         IReadOnlyList<ClosedCaptionTrackInfo> closedCaptionTrackInfos,
         ICollection<SubtitleInput> subtitleInputs,
         IProgress<double>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         var progressMuxer = progress?.Pipe(p => new ProgressMuxer(p));
-        var progresses = closedCaptionTrackInfos.Select(_ => progressMuxer?.CreateInput()).ToArray();
+        var progresses = closedCaptionTrackInfos
+            .Select(_ => progressMuxer?.CreateInput())
+            .ToArray();
 
         var lastIndex = 0;
 
@@ -207,7 +228,7 @@ internal partial class Converter
 
             subtitleInputs.Add(subtitleInput);
 
-            await _videoClient.ClosedCaptions.DownloadAsync(
+            await videoClient.ClosedCaptions.DownloadAsync(
                 trackInfo,
                 subtitleInput.FilePath,
                 trackProgress,
@@ -224,7 +245,8 @@ internal partial class Converter
         IReadOnlyList<IStreamInfo> streamInfos,
         IReadOnlyList<ClosedCaptionTrackInfo> closedCaptionTrackInfos,
         IProgress<double>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         if (!streamInfos.Any())
             throw new InvalidOperationException("No streams provided.");
@@ -234,9 +256,10 @@ internal partial class Converter
         var streamDownloadProgress = progressMuxer?.CreateInput();
         var subtitleDownloadProgress = progressMuxer?.CreateInput(0.01);
         var conversionProgress = progressMuxer?.CreateInput(
-            0.05 +
-            // Increase weight for each stream that needs to be transcoded
-            5 * streamInfos.Count(s => s.Container != container)
+            0.05
+                +
+                // Increase weight for each stream that needs to be transcoded
+                5 * streamInfos.Count(s => s.Container != container)
         );
 
         // Populate inputs
@@ -283,17 +306,11 @@ internal partial class Converter
 
 internal partial class Converter
 {
-    private class StreamInput : IDisposable
+    private class StreamInput(IStreamInfo info, string filePath) : IDisposable
     {
-        public IStreamInfo Info { get; }
+        public IStreamInfo Info { get; } = info;
 
-        public string FilePath { get; }
-
-        public StreamInput(IStreamInfo info, string filePath)
-        {
-            Info = info;
-            FilePath = filePath;
-        }
+        public string FilePath { get; } = filePath;
 
         public void Dispose()
         {
@@ -308,17 +325,11 @@ internal partial class Converter
         }
     }
 
-    private class SubtitleInput : IDisposable
+    private class SubtitleInput(ClosedCaptionTrackInfo info, string filePath) : IDisposable
     {
-        public ClosedCaptionTrackInfo Info { get; }
+        public ClosedCaptionTrackInfo Info { get; } = info;
 
-        public string FilePath { get; }
-
-        public SubtitleInput(ClosedCaptionTrackInfo info, string filePath)
-        {
-            Info = info;
-            FilePath = filePath;
-        }
+        public string FilePath { get; } = filePath;
 
         public void Dispose()
         {

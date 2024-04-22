@@ -13,20 +13,22 @@ using YoutubeExplode.Utils.Extensions;
 
 namespace YoutubeExplode.Videos;
 
-internal class VideoController
+internal class VideoController(HttpClient http)
 {
-    protected HttpClient Http { get; }
-
-    public VideoController(HttpClient http) => Http = http;
+    protected HttpClient Http { get; } = http;
 
     public async ValueTask<VideoWatchPage> GetVideoWatchPageAsync(
         VideoId videoId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         for (var retriesRemaining = 5; ; retriesRemaining--)
         {
             var watchPage = VideoWatchPage.TryParse(
-                await Http.GetStringAsync($"https://www.youtube.com/watch?v={videoId}&bpctr=9999999999", cancellationToken)
+                await Http.GetStringAsync(
+                    $"https://www.youtube.com/watch?v={videoId}&bpctr=9999999999",
+                    cancellationToken
+                )
             );
 
             if (watchPage is null)
@@ -35,8 +37,7 @@ internal class VideoController
                     continue;
 
                 throw new YoutubeExplodeException(
-                    "Video watch page is broken. " +
-                    "Please try again in a few minutes."
+                    "Video watch page is broken. Please try again in a few minutes."
                 );
             }
 
@@ -49,18 +50,30 @@ internal class VideoController
 
     public async ValueTask<PlayerResponse> GetPlayerResponseAsync(
         VideoId videoId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, "https://www.youtube.com/youtubei/v1/player?fields=videoDetails,microformat")
+        // The most optimal client to impersonate is the Android client, because
+        // it doesn't require signature deciphering (for both normal and n-parameter signatures).
+        // However, the regular Android client has a limitation, preventing it from downloading
+        // multiple streams from the same manifest (or the same stream multiple times).
+        // As a workaround, we're using ANDROID_TESTSUITE which appears to offer the same
+        // functionality, but doesn't impose the aforementioned limitation.
+        // https://github.com/Tyrrrz/YoutubeExplode/issues/705
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            "https://www.youtube.com/youtubei/v1/player"
+        )
         {
             Content = new StringContent(
+                // lang=json
                 $$"""
                 {
                     "videoId": "{{videoId}}",
                     "context": {
                         "client": {
-                            "clientName": "MWEB",
-                            "clientVersion": "2.20230420.05.00",
+                            "clientName": "ANDROID_TESTSUITE",
+                            "clientVersion": "1.9",
                             "androidSdkVersion": 30,
                             "hl": "en",
                             "gl": "US",
@@ -76,7 +89,7 @@ internal class VideoController
         // https://github.com/iv-org/invidious/issues/3230#issuecomment-1226887639
         request.Headers.Add(
             "User-Agent",
-            "Mozilla/5.0 (Linux; Android 10; SM-G981B) gzip"
+            "com.google.android.youtube/17.36.4 (Linux; U; Android 12; GB) gzip"
         );
 
         using var response = await Http.SendAsync(request, cancellationToken);
@@ -95,11 +108,19 @@ internal class VideoController
     public async ValueTask<PlayerResponse> GetPlayerResponseAsync(
         VideoId videoId,
         string? signatureTimestamp,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, "https://www.youtube.com/youtubei/v1/player")
+        // The only client that can handle age-restricted videos without authentication is the
+        // TVHTML5_SIMPLY_EMBEDDED_PLAYER client.
+        // This client does require signature deciphering, so we only use it as a fallback.
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            "https://www.youtube.com/youtubei/v1/player"
+        )
         {
             Content = new StringContent(
+                // lang=json
                 $$"""
                 {
                     "videoId": "{{videoId}}",
@@ -117,7 +138,7 @@ internal class VideoController
                     },
                     "playbackContext": {
                         "contentPlaybackContext": {
-                            "signatureTimestamp": "{{signatureTimestamp}}"
+                            "signatureTimestamp": "{{signatureTimestamp ?? "19369"}}"
                         }
                     }
                 }

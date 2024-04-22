@@ -1,34 +1,24 @@
 ﻿using System;
 using System.IO;
 
-namespace YoutubeExplode.DemoConsole.Utils;
+namespace YoutubeExplode.Demo.Cli.Utils;
 
-internal class ConsoleProgress : IProgress<double>, IDisposable
+internal class ConsoleProgress(TextWriter writer) : IProgress<double>, IDisposable
 {
-    private readonly TextWriter _writer;
-    private readonly int _posX;
-    private readonly int _posY;
+    private readonly int _posX = Console.CursorLeft;
+    private readonly int _posY = Console.CursorTop;
 
     private int _lastLength;
 
-    public ConsoleProgress(TextWriter writer)
-    {
-        _writer = writer;
-        _posX = Console.CursorLeft;
-        _posY = Console.CursorTop;
-    }
-
     public ConsoleProgress()
-        : this(Console.Out)
-    {
-    }
+        : this(Console.Out) { }
 
     private void EraseLast()
     {
         if (_lastLength > 0)
         {
             Console.SetCursorPosition(_posX, _posY);
-            _writer.Write(new string(' ', _lastLength));
+            writer.Write(new string(' ', _lastLength));
             Console.SetCursorPosition(_posX, _posY);
         }
     }
@@ -36,7 +26,7 @@ internal class ConsoleProgress : IProgress<double>, IDisposable
     private void Write(string text)
     {
         EraseLast();
-        _writer.Write(text);
+        writer.Write(text);
         _lastLength = text.Length;
     }
 

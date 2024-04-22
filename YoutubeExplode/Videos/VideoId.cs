@@ -9,14 +9,12 @@ namespace YoutubeExplode.Videos;
 /// <summary>
 /// Represents a syntactically valid YouTube video ID.
 /// </summary>
-public readonly partial struct VideoId
+public readonly partial struct VideoId(string value)
 {
     /// <summary>
     /// Raw ID value.
     /// </summary>
-    public string Value { get; }
-
-    private VideoId(string value) => Value = value;
+    public string Value { get; } = value;
 
     /// <inheritdoc />
     public override string ToString() => Value;
@@ -25,62 +23,77 @@ public readonly partial struct VideoId
 public partial struct VideoId
 {
     private static bool IsValid(string videoId) =>
-        videoId.Length == 11 &&
-        videoId.All(c => char.IsLetterOrDigit(c) || c is '_' or '-');
+        videoId.Length == 11 && videoId.All(c => char.IsLetterOrDigit(c) || c is '_' or '-');
 
     private static string? TryNormalize(string? videoIdOrUrl)
     {
         if (string.IsNullOrWhiteSpace(videoIdOrUrl))
             return null;
 
-        // Id
+        // Check if already passed an ID
         // yIVRs6YSbOM
         if (IsValid(videoIdOrUrl))
             return videoIdOrUrl;
 
-        // Regular URL
+        // Try to extract the ID from the URL
         // https://www.youtube.com/watch?v=yIVRs6YSbOM
-        var regularMatch = Regex
-            .Match(videoIdOrUrl, @"youtube\..+?/watch.*?v=(.*?)(?:&|/|$)")
-            .Groups[1]
-            .Value
-            .Pipe(WebUtility.UrlDecode);
+        {
+            var id = Regex
+                .Match(videoIdOrUrl, @"youtube\..+?/watch.*?v=(.*?)(?:&|/|$)")
+                .Groups[1]
+                .Value.Pipe(WebUtility.UrlDecode);
 
-        if (!string.IsNullOrWhiteSpace(regularMatch) && IsValid(regularMatch))
-            return regularMatch;
+            if (!string.IsNullOrWhiteSpace(id) && IsValid(id))
+                return id;
+        }
 
-        // Short URL
+        // Try to extract the ID from the URL (shortened)
         // https://youtu.be/yIVRs6YSbOM
-        var shortMatch = Regex
-            .Match(videoIdOrUrl, @"youtu\.be/(.*?)(?:\?|&|/|$)")
-            .Groups[1]
-            .Value
-            .Pipe(WebUtility.UrlDecode);
+        {
+            var id = Regex
+                .Match(videoIdOrUrl, @"youtu\.be/(.*?)(?:\?|&|/|$)")
+                .Groups[1]
+                .Value.Pipe(WebUtility.UrlDecode);
 
-        if (!string.IsNullOrWhiteSpace(shortMatch) && IsValid(shortMatch))
-            return shortMatch;
+            if (!string.IsNullOrWhiteSpace(id) && IsValid(id))
+                return id;
+        }
 
-        // Embed URL
+        // Try to extract the ID from the URL (embedded)
         // https://www.youtube.com/embed/yIVRs6YSbOM
-        var embedMatch = Regex
-            .Match(videoIdOrUrl, @"youtube\..+?/embed/(.*?)(?:\?|&|/|$)")
-            .Groups[1]
-            .Value
-            .Pipe(WebUtility.UrlDecode);
+        {
+            var id = Regex
+                .Match(videoIdOrUrl, @"youtube\..+?/embed/(.*?)(?:\?|&|/|$)")
+                .Groups[1]
+                .Value.Pipe(WebUtility.UrlDecode);
 
-        if (!string.IsNullOrWhiteSpace(embedMatch) && IsValid(embedMatch))
-            return embedMatch;
+            if (!string.IsNullOrWhiteSpace(id) && IsValid(id))
+                return id;
+        }
 
-        // Shorts URL
+        // Try to extract the ID from the URL (shorts clip)
         // https://www.youtube.com/shorts/sKL1vjP0tIo
-        var shortsMatch = Regex
-            .Match(videoIdOrUrl, @"youtube\..+?/shorts/(.*?)(?:\?|&|/|$)")
-            .Groups[1]
-            .Value
-            .Pipe(WebUtility.UrlDecode);
+        {
+            var id = Regex
+                .Match(videoIdOrUrl, @"youtube\..+?/shorts/(.*?)(?:\?|&|/|$)")
+                .Groups[1]
+                .Value.Pipe(WebUtility.UrlDecode);
 
-        if (!string.IsNullOrWhiteSpace(shortsMatch) && IsValid(shortsMatch))
-            return shortsMatch;
+            if (!string.IsNullOrWhiteSpace(id) && IsValid(id))
+                return id;
+        }
+
+        // Try to extract the ID from the URL (livestream)
+        // https://www.youtube.com/live/jfKfPfyJRdk
+        {
+            var id = Regex
+                .Match(videoIdOrUrl, @"youtube\..+?/live/(.*?)(?:\?|&|/|$)")
+                .Groups[1]
+                .Value.Pipe(WebUtility.UrlDecode);
+
+            if (!string.IsNullOrWhiteSpace(id) && IsValid(id))
+                return id;
+        }
 
         // Invalid input
         return null;
@@ -98,8 +111,8 @@ public partial struct VideoId
     /// Throws an exception in case of failure.
     /// </summary>
     public static VideoId Parse(string videoIdOrUrl) =>
-        TryParse(videoIdOrUrl) ??
-        throw new ArgumentException($"Invalid YouTube video ID or URL '{videoIdOrUrl}'.");
+        TryParse(videoIdOrUrl)
+        ?? throw new ArgumentException($"Invalid YouTube video ID or URL '{videoIdOrUrl}'.");
 
     /// <summary>
     /// Converts string to ID.

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -15,34 +15,35 @@ namespace YoutubeExplode.Videos.ClosedCaptions;
 /// <summary>
 /// Operations related to closed captions of YouTube videos.
 /// </summary>
-public class ClosedCaptionClient
+public class ClosedCaptionClient(HttpClient http)
 {
-    private readonly ClosedCaptionController _controller;
-
-    /// <summary>
-    /// Initializes an instance of <see cref="ClosedCaptionClient" />.
-    /// </summary>
-    public ClosedCaptionClient(HttpClient http) => _controller = new ClosedCaptionController(http);
+    private readonly ClosedCaptionController _controller = new(http);
 
     private async IAsyncEnumerable<ClosedCaptionTrackInfo> GetClosedCaptionTrackInfosAsync(
         VideoId videoId,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        [EnumeratorCancellation] CancellationToken cancellationToken = default
+    )
     {
-        var playerResponse = await _controller.GetPlayerResponseAsync(videoId, cancellationToken);
+        // Use the TVHTML5 client instead of ANDROID_TESTSUITE because the latter doesn't provide closed captions
+        var playerResponse = await _controller.GetPlayerResponseAsync(
+            videoId,
+            null,
+            cancellationToken
+        );
 
         foreach (var trackData in playerResponse.ClosedCaptionTracks)
         {
             var url =
-                trackData.Url ??
-                throw new YoutubeExplodeException("Could not extract track URL.");
+                trackData.Url
+                ?? throw new YoutubeExplodeException("Failed to extract the track URL.");
 
             var languageCode =
-                trackData.LanguageCode ??
-                throw new YoutubeExplodeException("Could not extract track language code.");
+                trackData.LanguageCode
+                ?? throw new YoutubeExplodeException("Failed to extract the track language code.");
 
             var languageName =
-                trackData.LanguageName ??
-                throw new YoutubeExplodeException("Could not extract track language name.");
+                trackData.LanguageName
+                ?? throw new YoutubeExplodeException("Failed to extract the track language name.");
 
             yield return new ClosedCaptionTrackInfo(
                 url,
@@ -57,50 +58,57 @@ public class ClosedCaptionClient
     /// </summary>
     public async ValueTask<ClosedCaptionManifest> GetManifestAsync(
         VideoId videoId,
-        CancellationToken cancellationToken = default) =>
-        new(await GetClosedCaptionTrackInfosAsync(videoId, cancellationToken));
+        CancellationToken cancellationToken = default
+    ) => new(await GetClosedCaptionTrackInfosAsync(videoId, cancellationToken));
 
     private async IAsyncEnumerable<ClosedCaption> GetClosedCaptionsAsync(
         ClosedCaptionTrackInfo trackInfo,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        [EnumeratorCancellation] CancellationToken cancellationToken = default
+    )
     {
-        var response = await _controller.GetClosedCaptionTrackResponseAsync(trackInfo.Url, cancellationToken);
+        var response = await _controller.GetClosedCaptionTrackResponseAsync(
+            trackInfo.Url,
+            cancellationToken
+        );
 
         foreach (var captionData in response.Captions)
         {
-            // Captions may have no text, but we should still include them to stay consistent
-            // with YouTube player behavior where captions are still displayed even if they're empty.
-            // https://github.com/Tyrrrz/YoutubeExplode/issues/671
-            var text = captionData.Text ?? "";
+            var text = captionData.Text;
 
-            // Auto-generated captions may be missing offset or duration.
+            // Skip over empty captions, but not captions containing only whitespace
+            // https://github.com/Tyrrrz/YoutubeExplode/issues/671
+            if (string.IsNullOrEmpty(text))
+                continue;
+
+            // Auto-generated captions may be missing offset or duration
             // https://github.com/Tyrrrz/YoutubeExplode/discussions/619
-            if (captionData.Offset is not { } offset ||
-                captionData.Duration is not { } duration)
+            if (captionData.Offset is not { } offset || captionData.Duration is not { } duration)
             {
                 continue;
             }
 
-            var parts = captionData.Parts.Select(p =>
+            var parts = new List<ClosedCaptionPart>();
+            foreach (var partData in captionData.Parts)
             {
-                // Caption parts may have no text, but we should still include them to stay consistent
-                // with YouTube player behavior where captions are still displayed even if they're empty.
+                var partText = partData.Text;
+
+                // Skip over empty parts, but not parts containing only whitespace
                 // https://github.com/Tyrrrz/YoutubeExplode/issues/671
-                var partText = p.Text ?? "";
+                if (string.IsNullOrEmpty(partText))
+                    continue;
 
                 var partOffset =
-                    p.Offset ??
-                    throw new YoutubeExplodeException("Could not extract caption part offset.");
+                    partData.Offset
+                    ?? throw new YoutubeExplodeException(
+                        "Failed to extract the caption part offset."
+                    );
 
-                return new ClosedCaptionPart(partText, partOffset);
-            }).ToArray();
+                var part = new ClosedCaptionPart(partText, partOffset);
 
-            yield return new ClosedCaption(
-                text,
-                offset,
-                duration,
-                parts
-            );
+                parts.Add(part);
+            }
+
+            yield return new ClosedCaption(text, offset, duration, parts);
         }
     }
 
@@ -109,8 +117,8 @@ public class ClosedCaptionClient
     /// </summary>
     public async ValueTask<ClosedCaptionTrack> GetAsync(
         ClosedCaptionTrackInfo trackInfo,
-        CancellationToken cancellationToken = default) =>
-        new(await GetClosedCaptionsAsync(trackInfo, cancellationToken));
+        CancellationToken cancellationToken = default
+    ) => new(await GetClosedCaptionsAsync(trackInfo, cancellationToken));
 
     /// <summary>
     /// Writes the closed caption track identified by the specified metadata to the specified writer.
@@ -122,31 +130,53 @@ public class ClosedCaptionClient
         ClosedCaptionTrackInfo trackInfo,
         TextWriter writer,
         IProgress<double>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
+        static string FormatTimestamp(TimeSpan value) =>
+            Math.Floor(value.TotalHours).ToString("00", CultureInfo.InvariantCulture)
+            + ':'
+            + value.Minutes.ToString("00", CultureInfo.InvariantCulture)
+            + ':'
+            + value.Seconds.ToString("00", CultureInfo.InvariantCulture)
+            + ','
+            + value.Milliseconds.ToString("000", CultureInfo.InvariantCulture);
+
+        // Would be better to use GetClosedCaptionsAsync(...) instead for streaming,
+        // but we need the total number of captions to report progress.
         var track = await GetAsync(trackInfo, cancellationToken);
 
         var buffer = new StringBuilder();
-        for (var i = 0; i < track.Captions.Count; i++)
+        foreach (var (caption, i) in track.Captions.WithIndex())
         {
-            var caption = track.Captions[i];
-            buffer.Clear();
-
             cancellationToken.ThrowIfCancellationRequested();
 
-            // Line number
-            buffer.AppendLine((i + 1).ToString());
-
-            // Time start --> time end
-            buffer.Append(caption.Offset.ToString(@"hh\:mm\:ss\,fff"));
-            buffer.Append(" --> ");
-            buffer.Append((caption.Offset + caption.Duration).ToString(@"hh\:mm\:ss\,fff"));
-            buffer.AppendLine();
-
-            // Actual text
-            buffer.AppendLine(caption.Text);
+            buffer
+                // Line number
+                .AppendLine((i + 1).ToString(CultureInfo.InvariantCulture))
+                // Time start --> time end
+                .Append(FormatTimestamp(caption.Offset))
+                .Append(" --> ")
+                .Append(FormatTimestamp(caption.Offset + caption.Duration))
+                .AppendLine()
+                // Content
+                .AppendLine(
+                    caption.Text
+                    // Caption text may contain valid SRT-formatted data in itself.
+                    // This can happen, for example, if the subtitles for a YouTube video
+                    // were imported from an SRT file, but something went wrong in the
+                    // process, resulting in parts of the file being read as captions
+                    // rather than control sequences.
+                    // SRT file format does not provide any means of escaping special
+                    // characters, so as a workaround we just replace the dashes in the
+                    // arrow sequence with en-dashes, which look similar enough.
+                    // https://github.com/Tyrrrz/YoutubeExplode/issues/755
+                    .Replace("-->", "––>", StringComparison.Ordinal)
+                );
 
             await writer.WriteLineAsync(buffer.ToString());
+            buffer.Clear();
+
             progress?.Report((i + 1.0) / track.Captions.Count);
         }
     }
@@ -161,7 +191,8 @@ public class ClosedCaptionClient
         ClosedCaptionTrackInfo trackInfo,
         string filePath,
         IProgress<double>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         using var writer = File.CreateText(filePath);
         await WriteToAsync(trackInfo, writer, progress, cancellationToken);

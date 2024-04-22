@@ -10,7 +10,7 @@ public class ChannelSlugSpecs
     [Theory]
     [InlineData("Tyrrrz")]
     [InlineData("BlenderFoundation")]
-    public void Channel_slug_can_be_parsed_from_a_slug_string(string channelSlug)
+    public void I_can_parse_a_channel_slug_from_a_slug_string(string channelSlug)
     {
         // Act
         var parsed = ChannelSlug.Parse(channelSlug);
@@ -22,8 +22,14 @@ public class ChannelSlugSpecs
     [Theory]
     [InlineData("youtube.com/c/Tyrrrz", "Tyrrrz")]
     [InlineData("youtube.com/c/BlenderFoundation", "BlenderFoundation")]
-    [InlineData("youtube.com/c/%D0%9C%D0%B5%D0%BB%D0%B0%D0%BD%D1%96%D1%8F%D0%9F%D0%BE%D0%B4%D0%BE%D0%BB%D1%8F%D0%BA", "МеланіяПодоляк")]
-    public void Channel_slug_can_be_parsed_from_a_URL_string(string channelUrl, string expectedChannelSlug)
+    [InlineData(
+        "youtube.com/c/%D0%9C%D0%B5%D0%BB%D0%B0%D0%BD%D1%96%D1%8F%D0%9F%D0%BE%D0%B4%D0%BE%D0%BB%D1%8F%D0%BA",
+        "МеланіяПодоляк"
+    )]
+    public void I_can_parse_a_channel_slug_from_a_URL_string(
+        string channelUrl,
+        string expectedChannelSlug
+    )
     {
         // Act
         var parsed = ChannelSlug.Parse(channelUrl);
@@ -38,7 +44,9 @@ public class ChannelSlugSpecs
     [InlineData("youtube.com/?c=Tyrrrz")]
     [InlineData("youtube.com/channel/Tyrrrz")]
     [InlineData("youtube.com/")]
-    public void Channel_slug_cannot_be_parsed_from_an_invalid_string(string channelSlugOrUrl)
+    public void I_can_try_to_parse_a_channel_slug_and_get_an_error_if_the_input_string_is_invalid(
+        string channelSlugOrUrl
+    )
     {
         // Act & assert
         Assert.Throws<ArgumentException>(() => ChannelSlug.Parse(channelSlugOrUrl));
