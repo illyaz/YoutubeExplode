@@ -8,7 +8,6 @@ public class ChannelUnavailableException : YoutubeExplodeException
     /// <summary>
     /// Initializes an instance of <see cref="ChannelUnavailableException" />.
     /// </summary>
-    public ChannelUnavailableException(string message) : base(message)
-    {
-    }
+    public ChannelUnavailableException(string message)
+        : base(message) { }
 }

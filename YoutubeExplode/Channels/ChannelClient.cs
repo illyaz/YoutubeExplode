@@ -5,7 +5,6 @@ using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-
 using YoutubeExplode.Bridge;
 using YoutubeExplode.Common;
 using YoutubeExplode.Exceptions;
@@ -114,11 +113,17 @@ public class ChannelClient(HttpClient http)
         return new PlaylistClient(http).GetVideosAsync(playlistId, cancellationToken);
     }
 
+    /// <summary>
+    /// </summary>
     public async ValueTask<ExtendedChannel> GetInnertubeAsync(
         ChannelId channelId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, "https://www.youtube.com/youtubei/v1/browse?fields=metadata.channelMetadataRenderer(title,description,externalId,avatar,vanityChannelUrl),header.c4TabbedHeaderRenderer(subscriberCountText.runs.text,videosCountText.runs.text,banner.thumbnails),alerts")
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            "https://www.youtube.com/youtubei/v1/browse?fields=metadata.channelMetadataRenderer(title,description,externalId,avatar,vanityChannelUrl),header.c4TabbedHeaderRenderer(subscriberCountText.runs.text,videosCountText.runs.text,banner.thumbnails),alerts"
+        )
         {
             Content = new StringContent(
                 $$"""
@@ -144,37 +149,40 @@ public class ChannelClient(HttpClient http)
 
         var content = Json.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
         var alertRenderer = content
-            .GetPropertyOrNull("alerts")?
-            .EnumerateArrayOrNull()?
-            .Select(x => x.GetPropertyOrNull("alertRenderer"))
+            .GetPropertyOrNull("alerts")
+            ?.EnumerateArrayOrNull()
+            ?.Select(x => x.GetPropertyOrNull("alertRenderer"))
             .WhereNotNull()
-            .FirstOrNull()?
-            .GetPropertyOrNull("text")?
-            .GetPropertyOrNull("simpleText")?
-            .GetString();
+            .FirstOrNull()
+            ?.GetPropertyOrNull("text")
+            ?.GetPropertyOrNull("simpleText")
+            ?.GetString();
 
         if (alertRenderer != null)
             throw new ChannelUnavailableException(alertRenderer);
 
-        var channelMetadataRenderer = content
-            .GetPropertyOrNull("metadata")?
-            .GetPropertyOrNull("channelMetadataRenderer")
+        var channelMetadataRenderer =
+            content.GetPropertyOrNull("metadata")?.GetPropertyOrNull("channelMetadataRenderer")
             ?? throw new YoutubeExplodeException("Could not extract channelMetadataRenderer");
 
-        var c4TabbedHeaderRenderer = content
-            .GetPropertyOrNull("header")?
-            .GetPropertyOrNull("c4TabbedHeaderRenderer")
+        var c4TabbedHeaderRenderer =
+            content.GetPropertyOrNull("header")?.GetPropertyOrNull("c4TabbedHeaderRenderer")
             ?? throw new YoutubeExplodeException("Could not extract c4TabbedHeaderRenderer");
 
         return new ExtendedChannel(
-            channelMetadataRenderer.GetProperty("externalId").GetString() ?? throw new YoutubeExplodeException("Could not extract channel ID."),
-            ChannelHandle.TryParse(channelMetadataRenderer.GetProperty("vanityChannelUrl").GetString()
-                ?? throw new YoutubeExplodeException("Could not extract channel vanity.")),
-            channelMetadataRenderer.GetProperty("title").GetString() ?? throw new YoutubeExplodeException("Could not extract channel title."),
+            channelMetadataRenderer.GetProperty("externalId").GetString()
+                ?? throw new YoutubeExplodeException("Could not extract channel ID."),
+            ChannelHandle.TryParse(
+                channelMetadataRenderer.GetProperty("vanityChannelUrl").GetString()
+                    ?? throw new YoutubeExplodeException("Could not extract channel vanity.")
+            ),
+            channelMetadataRenderer.GetProperty("title").GetString()
+                ?? throw new YoutubeExplodeException("Could not extract channel title."),
             channelMetadataRenderer.GetProperty("description").GetString()
                 ?? throw new YoutubeExplodeException("Could not extract channel description."),
-            c4TabbedHeaderRenderer.GetPropertyOrNull("videosCountText")?
-                .GetProperty("runs")
+            c4TabbedHeaderRenderer
+                .GetPropertyOrNull("videosCountText")
+                ?.GetProperty("runs")
                 .EnumerateArray()
                 .First()
                 .GetProperty("text")
@@ -182,8 +190,9 @@ public class ChannelClient(HttpClient http)
                 .Pipe(StringExtensions.StripNonDigit)
                 .Pipe(x => string.IsNullOrEmpty(x) ? "0" : x)
                 .Pipe(long.Parse) ?? 0,
-            c4TabbedHeaderRenderer.GetPropertyOrNull("subscriberCountText")?
-                .GetProperty("runs")
+            c4TabbedHeaderRenderer
+                .GetPropertyOrNull("subscriberCountText")
+                ?.GetProperty("runs")
                 .EnumerateArray()
                 .First()
                 .GetProperty("text")
@@ -195,18 +204,27 @@ public class ChannelClient(HttpClient http)
                 .GetProperty("thumbnails")
                 .EnumerateArrayOrEmpty()
                 .Select(x => new Thumbnail(
-                    x.GetPropertyOrNull("url")?.GetString() ?? throw new YoutubeExplodeException("Could not extract thumbnail url."),
+                    x.GetPropertyOrNull("url")?.GetString()
+                        ?? throw new YoutubeExplodeException("Could not extract thumbnail url."),
                     new Resolution(
                         x.GetProperty("width").GetInt32(),
-                        x.GetProperty("height").GetInt32()))).ToArray(),
-             c4TabbedHeaderRenderer
-                .GetPropertyOrNull("banner")?
-                .GetPropertyOrNull("thumbnails")?
-                .EnumerateArrayOrEmpty()
+                        x.GetProperty("height").GetInt32()
+                    )
+                ))
+                .ToArray(),
+            c4TabbedHeaderRenderer
+                .GetPropertyOrNull("banner")
+                ?.GetPropertyOrNull("thumbnails")
+                ?.EnumerateArrayOrEmpty()
                 .Select(x => new Thumbnail(
-                    x.GetPropertyOrNull("url")?.GetString() ?? throw new YoutubeExplodeException("Could not extract thumbnail url."),
+                    x.GetPropertyOrNull("url")?.GetString()
+                        ?? throw new YoutubeExplodeException("Could not extract thumbnail url."),
                     new Resolution(
                         x.GetProperty("width").GetInt32(),
-                        x.GetProperty("height").GetInt32()))).ToArray() ?? Array.Empty<Thumbnail>());
+                        x.GetProperty("height").GetInt32()
+                    )
+                ))
+                .ToArray() ?? Array.Empty<Thumbnail>()
+        );
     }
 }

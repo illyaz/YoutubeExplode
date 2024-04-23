@@ -45,10 +45,16 @@ public class ExtendedChannel : Channel
     public IReadOnlyList<Thumbnail> Banners { get; }
 
     /// <inheritdoc />
-    public ExtendedChannel(ChannelId id, ChannelHandle? handle, string title,
-        string description, long videoCount, long? subscriberCount, 
-        IReadOnlyList<Thumbnail> thumbnails, 
-        IReadOnlyList<Thumbnail> banners) 
+    public ExtendedChannel(
+        ChannelId id,
+        ChannelHandle? handle,
+        string title,
+        string description,
+        long videoCount,
+        long? subscriberCount,
+        IReadOnlyList<Thumbnail> thumbnails,
+        IReadOnlyList<Thumbnail> banners
+    )
         : base(id, title, thumbnails)
     {
         Handle = handle;

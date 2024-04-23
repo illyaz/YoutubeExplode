@@ -109,16 +109,22 @@ internal static class StringExtensions
         if (char.IsDigit(suffix))
             return long.Parse(s);
 
-        var value = double.Parse(s[0..^1],
+        var value = double.Parse(
+            s[0..^1],
             NumberStyles.Float | NumberStyles.AllowThousands,
-            NumberFormatInfo.InvariantInfo); ;
+            NumberFormatInfo.InvariantInfo
+        );
+        ;
 
-        return (long)(value * suffix switch
-        {
-            'K' => 1e3,
-            'M' => 1e6,
-            'B' => 1e9,
-            _ => throw new FormatException($"Invalid suffix '{suffix}' for '{s}'")
-        });
+        return (long)(
+            value
+            * suffix switch
+            {
+                'K' => 1e3,
+                'M' => 1e6,
+                'B' => 1e9,
+                _ => throw new FormatException($"Invalid suffix '{suffix}' for '{s}'")
+            }
+        );
     }
 }
