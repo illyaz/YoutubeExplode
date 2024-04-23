@@ -1,17 +1,17 @@
 using System;
 
 namespace YoutubeExplode.Videos.Streams;
-// Loosely based on https://github.com/omar/ByteSize (MIT license)
 
 /// <summary>
 /// File size.
 /// </summary>
-public readonly partial struct FileSize
+// Loosely based on https://github.com/omar/ByteSize (MIT license)
+public readonly partial struct FileSize(long bytes)
 {
     /// <summary>
     /// Size in bytes.
     /// </summary>
-    public long Bytes { get; }
+    public long Bytes { get; } = bytes;
 
     /// <summary>
     /// Size in kilobytes.
@@ -27,11 +27,6 @@ public readonly partial struct FileSize
     /// Size in gigabytes.
     /// </summary>
     public double GigaBytes => MegaBytes / 1024.0;
-
-    /// <summary>
-    /// Initializes an instance of <see cref="FileSize" />.
-    /// </summary>
-    public FileSize(long bytes) => Bytes = bytes;
 
     private string GetLargestWholeNumberSymbol()
     {
@@ -62,7 +57,8 @@ public readonly partial struct FileSize
     }
 
     /// <inheritdoc />
-    public override string ToString() => $"{GetLargestWholeNumberValue():0.##} {GetLargestWholeNumberSymbol()}";
+    public override string ToString() =>
+        $"{GetLargestWholeNumberValue():0.##} {GetLargestWholeNumberSymbol()}";
 }
 
 public partial struct FileSize : IComparable<FileSize>, IEquatable<FileSize>

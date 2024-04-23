@@ -18,47 +18,34 @@ namespace YoutubeExplode.Channels;
 /// <summary>
 /// Operations related to YouTube channels.
 /// </summary>
-public class ChannelClient
+public class ChannelClient(HttpClient http)
 {
-    private readonly HttpClient _http;
-    private readonly ChannelController _controller;
-
-    /// <summary>
-    /// Initializes an instance of <see cref="ChannelClient" />.
-    /// </summary>
-    public ChannelClient(HttpClient http)
-    {
-        _http = http;
-        _controller = new ChannelController(http);
-    }
+    private readonly ChannelController _controller = new(http);
 
     private Channel Get(ChannelPage channelPage)
     {
         var channelId =
-            channelPage.Id ??
-            throw new YoutubeExplodeException("Could not extract channel ID.");
+            channelPage.Id
+            ?? throw new YoutubeExplodeException("Failed to extract the channel ID.");
 
         var title =
-            channelPage.Title ??
-            throw new YoutubeExplodeException("Could not extract channel title.");
+            channelPage.Title
+            ?? throw new YoutubeExplodeException("Failed to extract the channel title.");
 
         var logoUrl =
-            channelPage.LogoUrl ??
-            throw new YoutubeExplodeException("Could not extract channel logo URL.");
+            channelPage.LogoUrl
+            ?? throw new YoutubeExplodeException("Failed to extract the channel logo URL.");
 
-        var logoSize = Regex
-            .Matches(logoUrl, @"\bs(\d+)\b")
-            .ToArray()
-            .LastOrDefault()?
-            .Groups[1]
-            .Value
-            .NullIfWhiteSpace()?
-            .ParseIntOrNull() ?? 100;
+        var logoSize =
+            Regex
+                .Matches(logoUrl, @"\bs(\d+)\b")
+                .ToArray()
+                .LastOrDefault()
+                ?.Groups[1]
+                .Value.NullIfWhiteSpace()
+                ?.ParseIntOrNull() ?? 100;
 
-        var thumbnails = new[]
-        {
-            new Thumbnail(logoUrl, new Resolution(logoSize, logoSize))
-        };
+        var thumbnails = new[] { new Thumbnail(logoUrl, new Resolution(logoSize, logoSize)) };
 
         return new Channel(channelId, title, thumbnails);
     }
@@ -68,32 +55,50 @@ public class ChannelClient
     /// </summary>
     public async ValueTask<Channel> GetAsync(
         ChannelId channelId,
-        CancellationToken cancellationToken = default) =>
-        Get(await _controller.GetChannelPageAsync(channelId, cancellationToken));
+        CancellationToken cancellationToken = default
+    )
+    {
+        // Special case for the "Movies & TV" channel, which has a custom page
+        if (channelId == "UCuVPpxrm2VAgpH3Ktln4HXg")
+        {
+            return new Channel(
+                "UCuVPpxrm2VAgpH3Ktln4HXg",
+                "Movies & TV",
+                [
+                    new Thumbnail(
+                        "https://www.gstatic.com/youtube/img/tvfilm/clapperboard_profile.png",
+                        new Resolution(1024, 1024)
+                    )
+                ]
+            );
+        }
+
+        return Get(await _controller.GetChannelPageAsync(channelId, cancellationToken));
+    }
 
     /// <summary>
     /// Gets the metadata associated with the channel of the specified user.
     /// </summary>
     public async ValueTask<Channel> GetByUserAsync(
         UserName userName,
-        CancellationToken cancellationToken = default) =>
-        Get(await _controller.GetChannelPageAsync(userName, cancellationToken));
+        CancellationToken cancellationToken = default
+    ) => Get(await _controller.GetChannelPageAsync(userName, cancellationToken));
 
     /// <summary>
     /// Gets the metadata associated with the channel identified by the specified slug or legacy custom URL.
     /// </summary>
     public async ValueTask<Channel> GetBySlugAsync(
         ChannelSlug channelSlug,
-        CancellationToken cancellationToken = default) =>
-        Get(await _controller.GetChannelPageAsync(channelSlug, cancellationToken));
+        CancellationToken cancellationToken = default
+    ) => Get(await _controller.GetChannelPageAsync(channelSlug, cancellationToken));
 
     /// <summary>
     /// Gets the metadata associated with the channel identified by the specified handle or custom URL.
     /// </summary>
     public async ValueTask<Channel> GetByHandleAsync(
         ChannelHandle channelHandle,
-        CancellationToken cancellationToken = default) =>
-        Get(await _controller.GetChannelPageAsync(channelHandle, cancellationToken));
+        CancellationToken cancellationToken = default
+    ) => Get(await _controller.GetChannelPageAsync(channelHandle, cancellationToken));
 
     /// <summary>
     /// Enumerates videos uploaded by the specified channel.
@@ -101,11 +106,12 @@ public class ChannelClient
     // TODO: should return <IVideo> sequence instead (breaking change)
     public IAsyncEnumerable<PlaylistVideo> GetUploadsAsync(
         ChannelId channelId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         // Replace 'UC' in the channel ID with 'UU'
         var playlistId = "UU" + channelId.Value[2..];
-        return new PlaylistClient(_http).GetVideosAsync(playlistId, cancellationToken);
+        return new PlaylistClient(http).GetVideosAsync(playlistId, cancellationToken);
     }
 
     public async ValueTask<ExtendedChannel> GetInnertubeAsync(
@@ -133,7 +139,7 @@ public class ChannelClient
             )
         };
 
-        using var response = await _http.SendAsync(request, cancellationToken);
+        using var response = await http.SendAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
 
         var content = Json.Parse(await response.Content.ReadAsStringAsync(cancellationToken));

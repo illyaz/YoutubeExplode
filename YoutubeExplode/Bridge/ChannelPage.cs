@@ -1,37 +1,27 @@
 using System;
 using AngleSharp.Html.Dom;
+using Lazy;
 using YoutubeExplode.Utils;
 using YoutubeExplode.Utils.Extensions;
 
 namespace YoutubeExplode.Bridge;
 
-internal partial class ChannelPage
+internal partial class ChannelPage(IHtmlDocument content)
 {
-    private readonly IHtmlDocument _content;
+    [Lazy]
+    public string? Url =>
+        content.QuerySelector("meta[property=\"og:url\"]")?.GetAttribute("content");
 
-    public string? Url => Memo.Cache(this, () =>
-        _content
-            .QuerySelector("meta[property=\"og:url\"]")?
-            .GetAttribute("content")
-    );
+    [Lazy]
+    public string? Id => Url?.SubstringAfter("channel/", StringComparison.OrdinalIgnoreCase);
 
-    public string? Id => Memo.Cache(this, () =>
-        Url?.SubstringAfter("channel/", StringComparison.OrdinalIgnoreCase)
-    );
+    [Lazy]
+    public string? Title =>
+        content.QuerySelector("meta[property=\"og:title\"]")?.GetAttribute("content");
 
-    public string? Title => Memo.Cache(this, () =>
-        _content
-            .QuerySelector("meta[property=\"og:title\"]")?
-            .GetAttribute("content")
-    );
-
-    public string? LogoUrl => Memo.Cache(this, () =>
-        _content
-            .QuerySelector("meta[property=\"og:image\"]")?
-            .GetAttribute("content")
-    );
-
-    public ChannelPage(IHtmlDocument content) => _content = content;
+    [Lazy]
+    public string? LogoUrl =>
+        content.QuerySelector("meta[property=\"og:image\"]")?.GetAttribute("content");
 }
 
 internal partial class ChannelPage

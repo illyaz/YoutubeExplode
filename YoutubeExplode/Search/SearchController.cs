@@ -1,28 +1,30 @@
-﻿using System.Net.Http;
+﻿using System.Net;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using YoutubeExplode.Bridge;
 
 namespace YoutubeExplode.Search;
 
-internal class SearchController
+internal class SearchController(HttpClient http)
 {
-    private readonly HttpClient _http;
-
-    public SearchController(HttpClient http) => _http = http;
-
     public async ValueTask<SearchResponse> GetSearchResponseAsync(
         string searchQuery,
         SearchFilter searchFilter,
         string? continuationToken,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, "https://www.youtube.com/youtubei/v1/search")
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            "https://www.youtube.com/youtubei/v1/search"
+        )
         {
             Content = new StringContent(
+                // lang=json
                 $$"""
                 {
-                    "query": "{{searchQuery}}",
+                    "query": "{{WebUtility.UrlEncode(searchQuery)}}",
                     "params": "{{searchFilter switch
                     {
                         SearchFilter.Video => "EgIQAQ%3D%3D",
@@ -45,11 +47,9 @@ internal class SearchController
             )
         };
 
-        using var response = await _http.SendAsync(request, cancellationToken);
+        using var response = await http.SendAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
 
-        return SearchResponse.Parse(
-            await response.Content.ReadAsStringAsync(cancellationToken)
-        );
+        return SearchResponse.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
     }
 }

@@ -1,5 +1,65 @@
 # Changelog
 
+> **Important**:
+> This changelog is no longer maintained and will be removed in the future.
+> Going forward, new versions of this package will have the corresponding release notes published on [GitHub Releases](https://github.com/Tyrrrz/YoutubeExplode/releases).
+
+## v6.3.8 (23-Nov-2023)
+
+- [Converter] Fixed an issue where downloading subtitled videos with `VideoClient.DownloadAsync(...)` crashed with an exception for certain language codes.
+
+## v6.3.7 (09-Nov-2023)
+
+- [Converter] Fixed an issue where subtitles embedded via `VideoClient.DownloadAsync(...)` had their languages specified using ISO 639-1 codes instead of ISO 639-2 codes.
+
+## v6.3.6 (17-Oct-2023)
+
+- Fixed an issue where calling `VideoClient.GetAsync(...)` on certain videos failed with an exception due to recent YouTube changes.
+
+## v6.3.5 (28-Sep-2023)
+
+- Added support for parsing live video URLs (i.e. `youtube.com/live/...`). (Thanks [@eimigueloliveir](https://github.com/eimigueloliveir))
+
+## v6.3.4 (06-Sep-2023)
+
+- Fixed an issue where calling any method on `SearchClient` resulted in an exception on mobile devices. (Thanks [@jerry08](https://github.com/jerry08))
+
+## v6.3.3 (31-Aug-2023)
+
+- Fixed an issue where calling `ChannelClient.GetAsync(...)` and `PlaylistClient.GetAsync(...)` failed on some channels and playlists due to recent YouTube changes. (Thanks [@tmm360](https://github.com/tmm360))
+
+## v6.3.2 (18-Aug-2023)
+
+- Fixed an issue where calling `StreamClient.GetManifestAsync(...)` failed on videos from the "YouTube Movies & TV" system channel.
+- Fixed an issue where calling `ChannelClient.GetAsync(...)` failed on the "YouTube Movies & TV" system channel.
+
+## v6.3.1 (23-Jul-2023)
+
+- Fixed an issue where calling `StreamClient.GetManifestAsync(...)` failed on some videos with an error saying `The format of value is invalid`.
+
+## v6.3 (21-Jul-2023)
+
+- Added support for providing cookies directly to `YoutubeClient` with the help of two new constructor overloads: `new YoutubeClient(IReadOnlyList<Cookie> initialCookies)` and `new YoutubeClient(HttpClient http, IReadOnlyList<Cookie> initialCookies)`. You will still need to obtain the cookies yourself (see the [readme](https://github.com/Tyrrrz/YoutubeExplode/blob/6.3/Readme.md#authentication) for some guidance), but YoutubeExplode will take care of generating the required headers and sending them with every request.
+
+## v6.2.17 (12-Jul-2023)
+
+- Changed the implementation of the `HttpMessageHandler` used by default in `YoutubeClient` from `HttpClientHandler` to `SocketsHttpHandler` on platforms that support it.
+- Fixed an issue where certain system playlist IDs were considered invalid, such as `LL`.
+
+## v6.2.16 (28-Jun-2023)
+
+- Fixed an issue where `ClosedCaptionClient.WriteToAsync(...)` and `ClosedCaptionClient.DownloadAsync(...)` produced invalid SRT timestamps for caption tracks that exceeded 24 hours in length.
+- [Converter] Fixed an issue where processing a video longer than 24 hours failed with an error or resulted in a deadlock.
+- [Converter] Reduced the amount of irrelevant output that is displayed as part of an error message when FFmpeg fails to process a video.
+
+## v6.2.15 (25-May-2023)
+
+- Fixed an issue where calling `StreamClient.GetManifestAsync(...)` failed on some videos with an error saying `Could not get cipher manifest`.
+
+## v6.2.14 (02-May-2023)
+
+- Fixed an issue where an attempt to read a media stream sometimes resulted in a `403 Forbidden` error.
+
 ## v6.2.13 (27-Apr-2023)
 
 - Improved support for older target frameworks via polyfills.
@@ -32,7 +92,7 @@
 
 ## v6.2.6 (11-Feb-2023)
 
-- Fixed an issue where an attempt to retrieve a stream occasionally failed with a 403 Forbidden error.
+- Fixed an issue where an attempt to retrieve a stream occasionally failed with a `403 Forbidden` error.
 - [Converter] Fixed an issue where downloading a video as an `mp3` file sometimes resulted in lower bitrate than the original audio.
 
 ## v6.2.5 (06-Dec-2022)
@@ -262,14 +322,14 @@ Thanks to [@d4n3436](https://github.com/d4n3436), [@Benjamin K.](https://github.
 - Improved exceptions, exception messages, and everything related to exceptions. Additionally, all exception types now derive from `YoutubeExplodeException`, making them easier to catch.
 - Added built-in retry mechanisms to work around transient errors on YouTube's side.
 - Improved resilience of the library in general.
-- Fixed an issue where attempts to download some videos were periodically causing 403 Forbidden.
+- Fixed an issue where attempts to download some videos were periodically causing `403 Forbidden`.
 - Fixed a metric ton of YouTube-related issues.
 - Many, many others improvements that I didn't think to mention.
 - Dropped .NET Framework v4.5 target in favor of v4.6.1 and .NET Standard v1.1 target in favor of v2.0.
 
 ## v4.7.16 (16-Mar-2020)
 
-- Fixed an issue where attempts to download some videos were periodically causing 403 Forbidden.
+- Fixed an issue where attempts to download some videos were periodically causing `403 Forbidden`.
 
 ## v4.7.15 (11-Mar-2020)
 
@@ -430,7 +490,7 @@ Thanks to [@d4n3436](https://github.com/d4n3436), [@Benjamin K.](https://github.
 
 ## v4.3.1 (28-Aug-2018)
 
-- Fixed an issue where retrieving some streams may throw a 403 HTTP error due to recent YouTube changes.
+- Fixed an issue where retrieving some streams may throw a `403 Forbidden` error due to recent YouTube changes.
 
 ## v4.3 (25-Jul-2018)
 

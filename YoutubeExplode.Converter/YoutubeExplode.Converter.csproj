@@ -6,18 +6,21 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <Description>
-      Extension for YoutubeExplode that provides an interface to download and convert videos using FFmpeg
-    </Description>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Description>Extension for YoutubeExplode that provides an interface to download and convert videos using FFmpeg</Description>
     <PackageProjectUrl>https://github.com/Tyrrrz/YoutubeExplode/tree/master/YoutubeExplode.Converter</PackageProjectUrl>
+    <PackageIcon>favicon.png</PackageIcon>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CliWrap" Version="3.6.0" />
-    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="all" />
-    <PackageReference Include="PolyShim" Version="1.2.0" PrivateAssets="all" />
+    <None Include="../favicon.png" Pack="true" PackagePath="" Visible="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CliWrap" Version="3.6.6" />
+    <PackageReference Include="CSharpier.MsBuild" Version="0.27.3" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="all" />
+    <PackageReference Include="PolyShim" Version="1.10.0" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
