@@ -158,6 +158,48 @@ internal class VideoController(HttpClient http)
         return playerResponse;
     }
 
+    public async ValueTask<PlayerResponse> GetPlayerResponseWebAsync(
+        VideoId videoId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            "https://www.youtube.com/youtubei/v1/player"
+        )
+        {
+            Content = new StringContent(
+                // lang=json
+                $$"""
+                {
+                    "videoId": "{{videoId}}",
+                    "context": {
+                        "client": {
+                            "clientName": "WEB",
+                            "clientVersion": "2.20240419.01.00",
+                            "hl": "en",
+                            "gl": "US",
+                            "utcOffsetMinutes": 0
+                        }
+                    }
+                }
+                """
+            )
+        };
+
+        using var response = await Http.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        var playerResponse = PlayerResponse.Parse(
+            await response.Content.ReadAsStringAsync(cancellationToken)
+        );
+
+        if (!playerResponse.IsAvailable)
+            throw new VideoUnavailableException($"Video '{videoId}' is not available.");
+
+        return playerResponse;
+    }
+
     public async ValueTask<string?> GetCommentTokenAsync(
         VideoId videoId,
         CancellationToken cancellationToken = default

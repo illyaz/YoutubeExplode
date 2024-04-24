@@ -109,7 +109,10 @@ public class VideoClient(HttpClient http)
         CancellationToken cancellationToken = default
     )
     {
-        var playerResponse = await _controller.GetPlayerResponseAsync(videoId, cancellationToken);
+        var playerResponse = await _controller.GetPlayerResponseWebAsync(
+            videoId,
+            cancellationToken
+        );
 
         var title =
             playerResponse.Title
@@ -120,29 +123,30 @@ public class VideoClient(HttpClient http)
 
         var channelTitle =
             playerResponse.Author
-            ?? throw new YoutubeExplodeException("Could not extract video author.");
+            ?? throw new YoutubeExplodeException("Failed to extract the video author.");
 
         var channelId =
             playerResponse.ChannelId
-            ?? throw new YoutubeExplodeException("Could not extract video channel ID.");
+            ?? throw new YoutubeExplodeException("Failed to extract the video channel ID.");
 
         var uploadDate =
             playerResponse.UploadDate
-            ?? throw new YoutubeExplodeException("Could not extract video upload date.");
+            ?? throw new YoutubeExplodeException("Failed to extract the video upload date.");
 
         var thumbnails = playerResponse
             .Thumbnails.Select(t =>
             {
                 var thumbnailUrl =
-                    t.Url ?? throw new YoutubeExplodeException("Could not extract thumbnail URL.");
+                    t.Url
+                    ?? throw new YoutubeExplodeException("Failed to extract the thumbnail URL.");
 
                 var thumbnailWidth =
                     t.Width
-                    ?? throw new YoutubeExplodeException("Could not extract thumbnail width.");
+                    ?? throw new YoutubeExplodeException("Failed to extract the thumbnail width.");
 
                 var thumbnailHeight =
                     t.Height
-                    ?? throw new YoutubeExplodeException("Could not extract thumbnail height.");
+                    ?? throw new YoutubeExplodeException("Failed to extract the thumbnail height.");
 
                 var thumbnailResolution = new Resolution(thumbnailWidth, thumbnailHeight);
 
