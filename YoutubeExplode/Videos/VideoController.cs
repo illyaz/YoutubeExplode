@@ -1,7 +1,10 @@
 ﻿using System;
+using System.Buffers.Text;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -276,7 +279,7 @@ internal class VideoController(HttpClient http)
     {
         using var request = new HttpRequestMessage(
             HttpMethod.Post,
-            "https://www.youtube.com/youtubei/v1/next?fields=frameworkUpdates.entityBatchUpdate.mutations.payload.commentEntityPayload(key,properties.content(content,commandRuns(startIndex,length)),toolbar.likeCountLiked),onResponseReceivedEndpoints.*.continuationItems(continuationItemRenderer.continuationEndpoint.continuationCommand.token,commentThreadRenderer(commentViewModel.commentViewModel.commentKey,replies.commentRepliesRenderer.contents.continuationItemRenderer.continuationEndpoint.continuationCommand.token))"
+            "https://www.youtube.com/youtubei/v1/next?fields=frameworkUpdates.entityBatchUpdate.mutations.payload.commentEntityPayload(key,properties.content(content,commandRuns(startIndex,length)),toolbar.likeCountLiked),onResponseReceivedEndpoints.*.continuationItems(continuationItemRenderer.continuationEndpoint.continuationCommand.token,commentThreadRenderer(comment.commentRenderer(commentId,contentText.runs.text,actionButtons.commentActionButtonsRenderer.likeButton.toggleButtonRenderer.accessibilityData.accessibilityData.label),commentViewModel.commentViewModel.commentKey,replies.commentRepliesRenderer.contents.continuationItemRenderer.continuationEndpoint.continuationCommand.token))"
         )
         {
             Content = new StringContent(
@@ -312,134 +315,192 @@ internal class VideoController(HttpClient http)
             .WhereNotNull()
             .SelectMany(x => x);
 
-        var commentEntityPayloads = content
-            .GetProperty("frameworkUpdates")
-            .GetProperty("entityBatchUpdate")
-            .GetProperty("mutations")
-            .EnumerateArray()
-            .Select(x => x.GetPropertyOrNull("payload")?.GetPropertyOrNull("commentEntityPayload"))
-            .WhereNotNull()
-            .ToDictionary(
-                k =>
-                    k.GetProperty("key").GetString()
-                    ?? throw new InvalidOperationException("`key` null"),
-                v => v
-            );
-
-        var comments = new List<Comment>();
-        var continuation = null as string;
-
-        foreach (var item in continuationItems)
+        try
         {
-            if (item.GetPropertyOrNull("commentThreadRenderer") is { } commentThreadRenderer)
+            var commentEntityPayloads = content
+                .GetPropertyOrNull("frameworkUpdates")
+                ?.GetProperty("entityBatchUpdate")
+                .GetProperty("mutations")
+                .EnumerateArray()
+                .Select(x =>
+                    x.GetPropertyOrNull("payload")?.GetPropertyOrNull("commentEntityPayload")
+                )
+                .WhereNotNull()
+                .ToDictionary(
+                    k =>
+                        k.GetProperty("key").GetString()
+                        ?? throw new InvalidOperationException("`key` null"),
+                    v => v
+                );
+
+            var comments = new List<Comment>();
+            var continuation = null as string;
+
+            foreach (var item in continuationItems)
             {
-                var commentId =
-                    commentThreadRenderer
-                        .GetProperty("commentViewModel")
-                        .GetProperty("commentViewModel")
-                        .GetProperty("commentKey")
-                        .GetString() ?? throw new InvalidOperationException("`commentId` null");
-
-                var payload = commentEntityPayloads[commentId];
-                var payloadContent = payload.GetProperty("properties").GetProperty("content");
-                var text = payloadContent.GetProperty("content").GetString()!;
-                var texts = new List<string>();
-                var commandRuns = payloadContent
-                    .GetPropertyOrNull("commandRuns")
-                    ?.EnumerateArray()
-                    .Select(x =>
-                        (
-                            x.GetPropertyOrNull("startIndex")?.GetInt32(),
-                            x.GetPropertyOrNull("length")?.GetInt32()
-                        )
-                    )
-                    .Where(x => x is { Item1: not null, Item2: not null })
-                    .Select(x => (x.Item1!.Value, x.Item2!.Value))
-                    .OrderBy(x => x.Item1)
-                    .ToList();
-                texts.Add(string.Empty);
-
-                var shouldAddNewRun = false;
-                for (var i = 0; i < text.Length; i++)
+                if (item.GetPropertyOrNull("commentThreadRenderer") is { } commentThreadRenderer)
                 {
-                    if (text[i] == '\r' && text.ElementAtOrNull(++i) == '\n')
-                    {
-                        texts.Add("\r\n");
-                        shouldAddNewRun = true;
-                    }
-                    else if (text[i] == '\n')
-                    {
-                        texts.Add("\n");
-                        shouldAddNewRun = true;
-                    }
-                    else
-                    {
-                        if (shouldAddNewRun)
-                        {
-                            texts.Add(string.Empty);
-                            shouldAddNewRun = false;
-                        }
+                    var commentId =
+                        commentThreadRenderer
+                            .GetPropertyOrNull("commentViewModel")
+                            ?.GetPropertyOrNull("commentViewModel")
+                            ?.GetPropertyOrNull("commentKey")
+                            ?.GetString()
+                        ?? commentThreadRenderer
+                            .GetPropertyOrNull("comment")
+                            ?.GetPropertyOrNull("commentRenderer")
+                            ?.GetPropertyOrNull("commentId")
+                            ?.GetString()
+                        ?? throw new InvalidOperationException("`commentId` null");
 
-                        if (commandRuns?.ElementAtOrNull(0) is { } x)
-                        {
-                            var (start, len) = x;
+                    var likeCount = 0;
+                    var texts = new List<string>();
 
-                            if (i > start)
-                                commandRuns.RemoveAt(0);
-                            else if (start == i)
+                    if (commentEntityPayloads != null)
+                    {
+                        var payload = commentEntityPayloads[commentId];
+
+                        // It's protobuf, restore original comment id
+                        var commentIdBytes = Convert.FromBase64String(
+                            WebUtility.UrlDecode(commentId)
+                        );
+                        commentId = Encoding.ASCII.GetString(commentIdBytes[2..28]);
+
+                        var payloadContent = payload
+                            .GetProperty("properties")
+                            .GetProperty("content");
+                        var text = payloadContent.GetProperty("content").GetString()!;
+                        var commandRuns = payloadContent
+                            .GetPropertyOrNull("commandRuns")
+                            ?.EnumerateArray()
+                            .Select(x =>
+                                (
+                                    x.GetPropertyOrNull("startIndex")?.GetInt32(),
+                                    x.GetPropertyOrNull("length")?.GetInt32()
+                                )
+                            )
+                            .Where(x => x is { Item1: not null, Item2: not null })
+                            .Select(x => (x.Item1!.Value, x.Item2!.Value))
+                            .OrderBy(x => x.Item1)
+                            .ToList();
+                        texts.Add(string.Empty);
+
+                        var shouldAddNewRun = false;
+                        for (var i = 0; i < text.Length; i++)
+                        {
+                            if (text[i] == '\n')
                             {
-                                texts[^1] += text[i..(i + len)];
-                                i += len;
+                                texts.Add("\n");
                                 shouldAddNewRun = true;
-                                continue;
+                            }
+                            else
+                            {
+                                if (shouldAddNewRun)
+                                {
+                                    texts.Add(string.Empty);
+                                    shouldAddNewRun = false;
+                                }
+
+                                if (commandRuns?.ElementAtOrNull(0) is { } x)
+                                {
+                                    var (start, len) = x;
+
+                                    if (i > start)
+                                        commandRuns.RemoveAt(0);
+                                    else if (start == i)
+                                    {
+                                        texts[^1] += text[i..(i + len)];
+                                        i += len - 1;
+                                        shouldAddNewRun = true;
+                                        continue;
+                                    }
+                                }
+
+                                texts[^1] += text[i];
                             }
                         }
 
-                        texts[^1] += text[i];
+                        if (texts.Count > 0 && texts[^1] == string.Empty)
+                            texts.RemoveAt(texts.Count - 1);
+
+                        likeCount =
+                            (int)
+                                payload
+                                    .GetProperty("toolbar")
+                                    .GetProperty("likeCountLiked")
+                                    .GetString()!
+                                    .Pipe(StringExtensions.ParseLongWithSizeSuffix) - 1;
                     }
+                    else
+                    {
+                        var commentRenderer = commentThreadRenderer
+                            .GetProperty("comment")
+                            .GetProperty("commentRenderer");
+
+                        texts.AddRange(
+                            commentRenderer
+                                .GetProperty("contentText")
+                                .GetPropertyOrNull("runs")
+                                ?.EnumerateArray()
+                                .Select(run =>
+                                    run.GetProperty("text").GetString()
+                                    ?? throw new System.InvalidOperationException(
+                                        "`runs.text` null"
+                                    )
+                                )!
+                        );
+
+                        likeCount = commentRenderer
+                            .GetProperty("actionButtons")
+                            .GetProperty("commentActionButtonsRenderer")
+                            .GetProperty("likeButton")
+                            .GetProperty("toggleButtonRenderer")
+                            .GetProperty("accessibilityData")
+                            .GetProperty("accessibilityData")
+                            .GetProperty("label")
+                            .GetString()!
+                            .Pipe(StringExtensions.StripNonDigit)
+                            .Pipe(int.Parse);
+                    }
+
+                    var repliesId = commentThreadRenderer
+                        .GetPropertyOrNull("replies")
+                        ?.GetPropertyOrNull("commentRepliesRenderer")
+                        ?.GetPropertyOrNull("contents")
+                        ?.EnumerateArrayOrNull()
+                        ?.Select(x =>
+                            x.GetPropertyOrNull("continuationItemRenderer")
+                                ?.GetPropertyOrNull("continuationEndpoint")
+                                ?.GetPropertyOrNull("continuationCommand")
+                                ?.GetProperty("token")
+                                .GetString()
+                        )
+                        .WhereNotNull()
+                        .FirstOrDefault();
+
+                    comments.Add(new(commentId, texts.ToArray(), repliesId, likeCount));
                 }
-
-                if (texts.Count > 0 && texts[^1] == string.Empty)
-                    texts.RemoveAt(texts.Count - 1);
-
-                var repliesId = commentThreadRenderer
-                    .GetPropertyOrNull("replies")
-                    ?.GetPropertyOrNull("commentRepliesRenderer")
-                    ?.GetPropertyOrNull("contents")
-                    ?.EnumerateArrayOrNull()
-                    ?.Select(x =>
-                        x.GetPropertyOrNull("continuationItemRenderer")
-                            ?.GetPropertyOrNull("continuationEndpoint")
-                            ?.GetPropertyOrNull("continuationCommand")
-                            ?.GetProperty("token")
-                            .GetString()
-                    )
-                    .WhereNotNull()
-                    .FirstOrDefault();
-
-                var likeCount =
-                    payload
-                        .GetProperty("toolbar")
-                        .GetProperty("likeCountLiked")
-                        .GetString()!
-                        .Pipe(int.Parse) - 1;
-
-                comments.Add(new(commentId, texts.ToArray(), repliesId, likeCount));
+                else if (
+                    item.GetPropertyOrNull("continuationItemRenderer") is
+                    { } continuationItemRenderer
+                )
+                {
+                    continuation = continuationItemRenderer
+                        .GetProperty("continuationEndpoint")
+                        .GetProperty("continuationCommand")
+                        .GetProperty("token")
+                        .GetString();
+                }
+                else
+                    continue;
             }
-            else if (
-                item.GetPropertyOrNull("continuationItemRenderer") is { } continuationItemRenderer
-            )
-            {
-                continuation = continuationItemRenderer
-                    .GetProperty("continuationEndpoint")
-                    .GetProperty("continuationCommand")
-                    .GetProperty("token")
-                    .GetString();
-            }
-            else
-                continue;
+
+            return new CommentBatch(comments.ToArray(), continuation);
         }
-
-        return new CommentBatch(comments.ToArray(), continuation);
+        catch
+        {
+            Console.WriteLine(content);
+            throw;
+        }
     }
 }
