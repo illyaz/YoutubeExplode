@@ -15,7 +15,7 @@ public class VideoSpecs(ITestOutputHelper testOutput)
     public async Task I_can_get_the_metadata_of_a_video()
     {
         // Arrange
-        var youtube = new YoutubeClient();
+        using var youtube = new YoutubeClient();
 
         // Act
         var video = await youtube.Videos.GetAsync(VideoIds.Normal);
@@ -49,21 +49,21 @@ public class VideoSpecs(ITestOutputHelper testOutput)
                 "육갑",
                 "Psy Gangnam Style"
             );
-        video.Engagement.ViewCount.Should().BeGreaterOrEqualTo(4_650_000_000);
-        video.Engagement.LikeCount.Should().BeGreaterOrEqualTo(24_000_000);
-        video.Engagement.DislikeCount.Should().BeGreaterOrEqualTo(0);
-        video.Engagement.AverageRating.Should().BeGreaterOrEqualTo(0);
+        video.Engagement.ViewCount.Should().BeGreaterThanOrEqualTo(4_650_000_000);
+        video.Engagement.LikeCount.Should().BeGreaterThanOrEqualTo(24_000_000);
+        video.Engagement.DislikeCount.Should().BeGreaterThanOrEqualTo(0);
+        video.Engagement.AverageRating.Should().BeGreaterThanOrEqualTo(0);
     }
 
     [Fact]
     public async Task I_can_try_to_get_the_metadata_of_a_video_and_get_an_error_if_it_is_private()
     {
         // Arrange
-        var youtube = new YoutubeClient();
+        using var youtube = new YoutubeClient();
 
         // Act & assert
-        var ex = await Assert.ThrowsAsync<VideoUnavailableException>(
-            async () => await youtube.Videos.GetAsync(VideoIds.Private)
+        var ex = await Assert.ThrowsAsync<VideoUnavailableException>(async () =>
+            await youtube.Videos.GetAsync(VideoIds.Private)
         );
 
         testOutput.WriteLine(ex.ToString());
@@ -73,11 +73,11 @@ public class VideoSpecs(ITestOutputHelper testOutput)
     public async Task I_can_try_to_get_the_metadata_of_a_video_and_get_an_error_if_it_does_not_exist()
     {
         // Arrange
-        var youtube = new YoutubeClient();
+        using var youtube = new YoutubeClient();
 
         // Act & assert
-        var ex = await Assert.ThrowsAsync<VideoUnavailableException>(
-            async () => await youtube.Videos.GetAsync(VideoIds.Deleted)
+        var ex = await Assert.ThrowsAsync<VideoUnavailableException>(async () =>
+            await youtube.Videos.GetAsync(VideoIds.Deleted)
         );
 
         testOutput.WriteLine(ex.ToString());
@@ -89,13 +89,12 @@ public class VideoSpecs(ITestOutputHelper testOutput)
     [InlineData(VideoIds.RequiresPurchaseDistributed)]
     [InlineData(VideoIds.EmbedRestrictedByYouTube)]
     [InlineData(VideoIds.EmbedRestrictedByAuthor)]
-    [InlineData(VideoIds.AgeRestrictedViolent)]
-    [InlineData(VideoIds.AgeRestrictedEmbedRestricted)]
+    [InlineData(VideoIds.ContentCheckViolent)]
     [InlineData(VideoIds.WithBrokenTitle)]
     public async Task I_can_get_the_metadata_of_any_available_video(string videoId)
     {
         // Arrange
-        var youtube = new YoutubeClient();
+        using var youtube = new YoutubeClient();
 
         // Act
         var video = await youtube.Videos.GetAsync(videoId);
@@ -117,7 +116,7 @@ public class VideoSpecs(ITestOutputHelper testOutput)
     public async Task I_can_get_the_highest_resolution_thumbnail_from_a_video()
     {
         // Arrange
-        var youtube = new YoutubeClient();
+        using var youtube = new YoutubeClient();
 
         // Act
         var video = await youtube.Videos.GetAsync(VideoIds.Normal);

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Text.RegularExpressions;
@@ -42,7 +43,12 @@ public class ChannelClient(HttpClient http)
                 .LastOrDefault()
                 ?.Groups[1]
                 .Value.NullIfWhiteSpace()
-                ?.ParseIntOrNull() ?? 100;
+                ?.Pipe(s =>
+                    int.TryParse(s, CultureInfo.InvariantCulture, out var result)
+                        ? result
+                        : (int?)null
+                )
+            ?? 100;
 
         var thumbnails = new[] { new Thumbnail(logoUrl, new Resolution(logoSize, logoSize)) };
 
@@ -67,7 +73,7 @@ public class ChannelClient(HttpClient http)
                     new Thumbnail(
                         "https://www.gstatic.com/youtube/img/tvfilm/clapperboard_profile.png",
                         new Resolution(1024, 1024)
-                    )
+                    ),
                 ]
             );
         }

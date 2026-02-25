@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text.Json;
 using Lazy;
@@ -33,6 +34,29 @@ internal partial class PlaylistNextResponse(JsonElement content) : IPlaylistData
     public string? ChannelId => null;
 
     public string? Description => null;
+
+    [Lazy]
+    public int? Count =>
+        ContentRoot
+            ?.GetPropertyOrNull("totalVideosText")
+            ?.GetPropertyOrNull("runs")
+            ?.EnumerateArrayOrNull()
+            ?.FirstOrNull()
+            ?.GetPropertyOrNull("text")
+            ?.GetStringOrNull()
+            ?.Pipe(s =>
+                int.TryParse(s, CultureInfo.InvariantCulture, out var result) ? result : (int?)null
+            )
+        ?? ContentRoot
+            ?.GetPropertyOrNull("videoCountText")
+            ?.GetPropertyOrNull("runs")
+            ?.EnumerateArrayOrNull()
+            ?.ElementAtOrNull(2)
+            ?.GetPropertyOrNull("text")
+            ?.GetStringOrNull()
+            ?.Pipe(s =>
+                int.TryParse(s, CultureInfo.InvariantCulture, out var result) ? result : (int?)null
+            );
 
     [Lazy]
     public IReadOnlyList<ThumbnailData> Thumbnails => Videos.FirstOrDefault()?.Thumbnails ?? [];

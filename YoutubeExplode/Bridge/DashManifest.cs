@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Text.RegularExpressions;
@@ -53,7 +54,11 @@ internal partial class DashManifest
             (long?)content.Attribute("contentLength")
             ?? Url?.Pipe(s => Regex.Match(s, @"[/\?]clen[/=](\d+)").Groups[1].Value)
                 .NullIfWhiteSpace()
-                ?.ParseLongOrNull();
+                ?.Pipe(s =>
+                    long.TryParse(s, CultureInfo.InvariantCulture, out var result)
+                        ? result
+                        : (long?)null
+                );
 
         [Lazy]
         public long? Bitrate => (long?)content.Attribute("bandwidth");
@@ -69,6 +74,12 @@ internal partial class DashManifest
 
         [Lazy]
         public string? AudioCodec => IsAudioOnly ? (string?)content.Attribute("codecs") : null;
+
+        public string? AudioLanguageCode => null;
+
+        public string? AudioLanguageName => null;
+
+        public bool? IsAudioLanguageDefault => null;
 
         [Lazy]
         public string? VideoCodec => IsAudioOnly ? null : (string?)content.Attribute("codecs");

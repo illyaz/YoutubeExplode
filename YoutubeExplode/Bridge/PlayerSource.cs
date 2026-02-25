@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text.RegularExpressions;
 using Lazy;
 using YoutubeExplode.Bridge.Cipher;
@@ -51,7 +52,6 @@ internal partial class PlayerSource(string content)
             var cipherDefinition = Regex
                 .Match(
                     content,
-                    // lang=js
                     $$"""
                     var {{Regex.Escape(cipherContainerName)}}={.*?};
                     """,
@@ -94,13 +94,13 @@ internal partial class PlayerSource(string content)
                 .Value.NullIfWhiteSpace();
 
             var operations = new List<ICipherOperation>();
-
             foreach (var statement in cipherCallsite.Split(';'))
             {
                 var calledFuncName = Regex
                     .Match(statement, @"[$_\w]+\.([$_\w]+)\([$_\w]+,\d+\)")
                     .Groups[1]
                     .Value;
+
                 if (string.IsNullOrWhiteSpace(calledFuncName))
                     continue;
 
@@ -109,7 +109,8 @@ internal partial class PlayerSource(string content)
                     var index = Regex
                         .Match(statement, @"\([$_\w]+,(\d+)\)")
                         .Groups[1]
-                        .Value.ParseInt();
+                        .Value.Pipe(s => int.Parse(s, CultureInfo.InvariantCulture));
+
                     operations.Add(new SwapCipherOperation(index));
                 }
                 else if (string.Equals(calledFuncName, spliceFuncName, StringComparison.Ordinal))
@@ -117,7 +118,8 @@ internal partial class PlayerSource(string content)
                     var index = Regex
                         .Match(statement, @"\([$_\w]+,(\d+)\)")
                         .Groups[1]
-                        .Value.ParseInt();
+                        .Value.Pipe(s => int.Parse(s, CultureInfo.InvariantCulture));
+
                     operations.Add(new SpliceCipherOperation(index));
                 }
                 else if (string.Equals(calledFuncName, reverseFuncName, StringComparison.Ordinal))

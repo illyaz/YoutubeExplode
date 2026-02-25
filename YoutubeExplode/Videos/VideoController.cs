@@ -1,11 +1,5 @@
-﻿using System;
-using System.Buffers.Text;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Net.Http;
-using System.Text;
-using System.Text.Json;
+﻿using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 using YoutubeExplode.Bridge;
@@ -17,7 +11,48 @@ namespace YoutubeExplode.Videos;
 
 internal class VideoController(HttpClient http)
 {
+    private string? _visitorData;
+
     protected HttpClient Http { get; } = http;
+
+    private async ValueTask<string> ResolveVisitorDataAsync(
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!string.IsNullOrWhiteSpace(_visitorData))
+            return _visitorData;
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            "https://www.youtube.com/sw.js_data"
+        );
+
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+        request.Headers.Add(
+            "User-Agent",
+            "com.google.android.youtube/20.10.38 (Linux; U; ANDROID 11) gzip"
+        );
+
+        using var response = await Http.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        // TODO: move this to a bridge wrapper
+        var jsonString = await response.Content.ReadAsStringAsync(cancellationToken);
+        if (jsonString.StartsWith(")]}'"))
+            jsonString = jsonString[4..];
+
+        var json = Json.Parse(jsonString);
+
+        // This is just an ordered (but unstructured) blob of data
+        var value = json[0][2][0][0][13].GetStringOrNull();
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new YoutubeExplodeException("Failed to resolve visitor data.");
+        }
+
+        return _visitorData = value;
+    }
 
     public async ValueTask<VideoWatchPage> GetVideoWatchPageAsync(
         VideoId videoId,
@@ -55,43 +90,49 @@ internal class VideoController(HttpClient http)
         CancellationToken cancellationToken = default
     )
     {
-        // The most optimal client to impersonate is the Android client, because
-        // it doesn't require signature deciphering (for both normal and n-parameter signatures).
-        // However, the regular Android client has a limitation, preventing it from downloading
-        // multiple streams from the same manifest (or the same stream multiple times).
-        // As a workaround, we're using ANDROID_TESTSUITE which appears to offer the same
-        // functionality, but doesn't impose the aforementioned limitation.
-        // https://github.com/Tyrrrz/YoutubeExplode/issues/705
+        var visitorData = await ResolveVisitorDataAsync(cancellationToken);
+
+        // The most optimal client to impersonate is any mobile client, because they
+        // don't require signature deciphering (for both normal and n-parameter signatures).
+        // YouTube now requires Proof of Origin (PO) tokens for most Innertube clients (iOS, Android, etc.),
+        // causing stream downloads to fail with 403 Forbidden errors. The ANDROID_VR client (Oculus Quest)
+        // still works without PO tokens and provides full format access.
+        // https://github.com/Tyrrrz/YoutubeExplode/issues/933
         using var request = new HttpRequestMessage(
             HttpMethod.Post,
             "https://www.youtube.com/youtubei/v1/player"
-        )
-        {
-            Content = new StringContent(
-                // lang=json
-                $$"""
-                {
-                    "videoId": "{{videoId}}",
-                    "context": {
-                        "client": {
-                            "clientName": "ANDROID_TESTSUITE",
-                            "clientVersion": "1.9",
-                            "androidSdkVersion": 30,
-                            "hl": "en",
-                            "gl": "US",
-                            "utcOffsetMinutes": 0
-                        }
-                    }
+        );
+
+        request.Content = new StringContent(
+            // lang=json
+            $$"""
+            {
+              "videoId": {{Json.Serialize(videoId)}},
+              "contentCheckOk": true,
+              "context": {
+                "client": {
+                  "clientName": "ANDROID_VR",
+                  "clientVersion": "1.60.19",
+                  "deviceMake": "Oculus",
+                  "deviceModel": "Quest 3",
+                  "osName": "Android",
+                  "osVersion": "12L",
+                  "platform": "MOBILE",
+                  "visitorData": {{Json.Serialize(visitorData)}},
+                  "hl": "en",
+                  "gl": "US",
+                  "utcOffsetMinutes": 0
                 }
-                """
-            )
-        };
+              }
+            }
+            """
+        );
 
         // User agent appears to be sometimes required when impersonating Android
         // https://github.com/iv-org/invidious/issues/3230#issuecomment-1226887639
         request.Headers.Add(
             "User-Agent",
-            "com.google.android.youtube/17.36.4 (Linux; U; Android 12; GB) gzip"
+            "com.google.android.apps.youtube.vr.oculus/1.60.19 (Linux; U; Android 12L; Quest 3 Build/SQ3A.220605.009.A1) gzip"
         );
 
         using var response = await Http.SendAsync(request, cancellationToken);
@@ -113,40 +154,42 @@ internal class VideoController(HttpClient http)
         CancellationToken cancellationToken = default
     )
     {
+        var visitorData = await ResolveVisitorDataAsync(cancellationToken);
+
         // The only client that can handle age-restricted videos without authentication is the
         // TVHTML5_SIMPLY_EMBEDDED_PLAYER client.
         // This client does require signature deciphering, so we only use it as a fallback.
         using var request = new HttpRequestMessage(
             HttpMethod.Post,
             "https://www.youtube.com/youtubei/v1/player"
-        )
-        {
-            Content = new StringContent(
-                // lang=json
-                $$"""
-                {
-                    "videoId": "{{videoId}}",
-                    "context": {
-                        "client": {
-                            "clientName": "TVHTML5_SIMPLY_EMBEDDED_PLAYER",
-                            "clientVersion": "2.0",
-                            "hl": "en",
-                            "gl": "US",
-                            "utcOffsetMinutes": 0
-                        },
-                        "thirdParty": {
-                            "embedUrl": "https://www.youtube.com"
-                        }
-                    },
-                    "playbackContext": {
-                        "contentPlaybackContext": {
-                            "signatureTimestamp": "{{signatureTimestamp ?? "19369"}}"
-                        }
-                    }
+        );
+
+        request.Content = new StringContent(
+            // lang=json
+            $$"""
+            {
+              "videoId": {{Json.Serialize(videoId)}},
+              "context": {
+                "client": {
+                  "clientName": "TVHTML5_SIMPLY_EMBEDDED_PLAYER",
+                  "clientVersion": "2.0",
+                  "visitorData": {{Json.Serialize(visitorData)}},
+                  "hl": "en",
+                  "gl": "US",
+                  "utcOffsetMinutes": 0
+                },
+                "thirdParty": {
+                  "embedUrl": "https://www.youtube.com"
                 }
-                """
-            )
-        };
+              },
+              "playbackContext": {
+                "contentPlaybackContext": {
+                  "signatureTimestamp": {{Json.Serialize(signatureTimestamp)}}
+                }
+              }
+            }
+            """
+        );
 
         using var response = await Http.SendAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();

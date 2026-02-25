@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text.Json;
 using Lazy;
@@ -45,7 +46,14 @@ internal partial class PlaylistBrowseResponse(JsonElement content) : IPlaylistDa
             ?.EnumerateArrayOrNull()
             ?.Select(j => j.GetPropertyOrNull("text")?.GetStringOrNull())
             .WhereNotNull()
-            .ConcatToString();
+            .Pipe(string.Concat)
+        ?? SidebarPrimary
+            ?.GetPropertyOrNull("titleForm")
+            ?.GetPropertyOrNull("inlineFormRenderer")
+            ?.GetPropertyOrNull("formField")
+            ?.GetPropertyOrNull("textInputFormFieldRenderer")
+            ?.GetPropertyOrNull("value")
+            ?.GetStringOrNull();
 
     [Lazy]
     private JsonElement? AuthorDetails =>
@@ -63,7 +71,7 @@ internal partial class PlaylistBrowseResponse(JsonElement content) : IPlaylistDa
             ?.EnumerateArrayOrNull()
             ?.Select(j => j.GetPropertyOrNull("text")?.GetStringOrNull())
             .WhereNotNull()
-            .ConcatToString();
+            .Pipe(string.Concat);
 
     [Lazy]
     public string? ChannelId =>
@@ -85,7 +93,40 @@ internal partial class PlaylistBrowseResponse(JsonElement content) : IPlaylistDa
             ?.EnumerateArrayOrNull()
             ?.Select(j => j.GetPropertyOrNull("text")?.GetStringOrNull())
             .WhereNotNull()
-            .ConcatToString();
+            .Pipe(string.Concat)
+        ?? SidebarPrimary
+            ?.GetPropertyOrNull("descriptionForm")
+            ?.GetPropertyOrNull("inlineFormRenderer")
+            ?.GetPropertyOrNull("formField")
+            ?.GetPropertyOrNull("textInputFormFieldRenderer")
+            ?.GetPropertyOrNull("value")
+            ?.GetStringOrNull();
+
+    [Lazy]
+    public int? Count =>
+        SidebarPrimary
+            ?.GetPropertyOrNull("stats")
+            ?.EnumerateArrayOrNull()
+            ?.FirstOrNull()
+            ?.GetPropertyOrNull("runs")
+            ?.EnumerateArrayOrNull()
+            ?.FirstOrNull()
+            ?.GetPropertyOrNull("text")
+            ?.GetStringOrNull()
+            ?.Pipe(s =>
+                int.TryParse(s, CultureInfo.InvariantCulture, out var result) ? result : (int?)null
+            )
+        ?? SidebarPrimary
+            ?.GetPropertyOrNull("stats")
+            ?.EnumerateArrayOrNull()
+            ?.FirstOrNull()
+            ?.GetPropertyOrNull("simpleText")
+            ?.GetStringOrNull()
+            ?.Split(' ')
+            ?.FirstOrDefault()
+            ?.Pipe(s =>
+                int.TryParse(s, CultureInfo.InvariantCulture, out var result) ? result : (int?)null
+            );
 
     [Lazy]
     public IReadOnlyList<ThumbnailData> Thumbnails =>

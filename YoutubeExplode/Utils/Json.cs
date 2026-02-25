@@ -1,6 +1,7 @@
+using System.Globalization;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
-using YoutubeExplode.Utils.Extensions;
 
 namespace YoutubeExplode.Utils;
 
@@ -15,20 +16,20 @@ internal static class Json
 
         // We trust that the source contains valid json, we just need to extract it.
         // To do it, we will be matching curly braces until we even out.
-        foreach (var (c, i) in source.WithIndex())
+        foreach (var (i, ch) in source.Index())
         {
             var prev = i > 0 ? source[i - 1] : default;
 
-            buffer.Append(c);
+            buffer.Append(ch);
 
             // Detect if inside a string
-            if (c == '"' && prev != '\\')
+            if (ch == '"' && prev != '\\')
                 isInsideString = !isInsideString;
             // Opening brace
-            else if (c == '{' && !isInsideString)
+            else if (ch == '{' && !isInsideString)
                 depth++;
             // Closing brace
-            else if (c == '}' && !isInsideString)
+            else if (ch == '}' && !isInsideString)
                 depth--;
 
             // Break when evened out
@@ -56,4 +57,35 @@ internal static class Json
             return null;
         }
     }
+
+    public static string Encode(string value)
+    {
+        var buffer = new StringBuilder(value.Length);
+
+        foreach (var c in value)
+        {
+            if (c == '\n')
+                buffer.Append("\\n");
+            else if (c == '\r')
+                buffer.Append("\\r");
+            else if (c == '\t')
+                buffer.Append("\\t");
+            else if (c == '\\')
+                buffer.Append("\\\\");
+            else if (c == '"')
+                buffer.Append("\\\"");
+            else
+                buffer.Append(c);
+        }
+
+        return buffer.ToString();
+    }
+
+    // AOT-compatible serialization
+    public static string Serialize(string? value) =>
+        value is not null ? '"' + Encode(value) + '"' : "null";
+
+    // AOT-compatible serialization
+    public static string Serialize(int? value) =>
+        value is not null ? value.Value.ToString(CultureInfo.InvariantCulture) : "null";
 }
