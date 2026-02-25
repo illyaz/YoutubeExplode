@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -58,21 +59,18 @@ internal static class StringExtensions
                 [secondCharIndex] = str[firstCharIndex],
             }.ToString();
 
-        public static string ConcatToString<T>(this IEnumerable<T> source) => string.Concat(source);
-
-        public static long ParseLongWithSizeSuffix(this string s)
+        public long ParseLongWithSizeSuffix()
         {
-            var suffix = s[^1];
+            var suffix = str[^1];
 
             if (char.IsDigit(suffix))
-                return long.Parse(s);
+                return long.Parse(str);
 
             var value = double.Parse(
-                s[0..^1],
+                str[..^1],
                 NumberStyles.Float | NumberStyles.AllowThousands,
                 NumberFormatInfo.InvariantInfo
             );
-            ;
 
             return (long)(
                 value
@@ -81,7 +79,7 @@ internal static class StringExtensions
                     'K' => 1e3,
                     'M' => 1e6,
                     'B' => 1e9,
-                    _ => throw new FormatException($"Invalid suffix '{suffix}' for '{s}'")
+                    _ => throw new FormatException($"Invalid suffix '{suffix}' for '{str}'"),
                 }
             );
         }

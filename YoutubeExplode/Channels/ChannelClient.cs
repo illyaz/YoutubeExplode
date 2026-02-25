@@ -147,7 +147,7 @@ public class ChannelClient(HttpClient http)
                     }
                 }
                 """
-            )
+            ),
         };
 
         using var response = await http.SendAsync(request, cancellationToken);
@@ -177,15 +177,15 @@ public class ChannelClient(HttpClient http)
 
         return new ExtendedChannel(
             channelMetadataRenderer.GetProperty("externalId").GetString()
-                ?? throw new YoutubeExplodeException("Could not extract channel ID."),
+            ?? throw new YoutubeExplodeException("Could not extract channel ID."),
             ChannelHandle.TryParse(
                 channelMetadataRenderer.GetProperty("vanityChannelUrl").GetString()
-                    ?? throw new YoutubeExplodeException("Could not extract channel vanity.")
+                ?? throw new YoutubeExplodeException("Could not extract channel vanity.")
             ),
             channelMetadataRenderer.GetProperty("title").GetString()
-                ?? throw new YoutubeExplodeException("Could not extract channel title."),
+            ?? throw new YoutubeExplodeException("Could not extract channel title."),
             channelMetadataRenderer.GetProperty("description").GetString()
-                ?? throw new YoutubeExplodeException("Could not extract channel description."),
+            ?? throw new YoutubeExplodeException("Could not extract channel description."),
             c4TabbedHeaderRenderer
                 .GetPropertyOrNull("videosCountText")
                 ?.GetProperty("runs")

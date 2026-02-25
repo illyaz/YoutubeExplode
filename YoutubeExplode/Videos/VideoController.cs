@@ -1,5 +1,10 @@
-﻿using System.Net.Http;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using YoutubeExplode.Bridge;
@@ -230,7 +235,7 @@ internal class VideoController(HttpClient http)
                     }
                 }
                 """
-            )
+            ),
         };
 
         using var response = await Http.SendAsync(request, cancellationToken);
@@ -271,7 +276,7 @@ internal class VideoController(HttpClient http)
                     }
                 }
                 """
-            )
+            ),
         };
 
         // User agent appears to be sometimes required when impersonating Android
@@ -340,7 +345,7 @@ internal class VideoController(HttpClient http)
                     }
                 }
                 """
-            )
+            ),
         };
 
         using var response = await Http.SendAsync(request, cancellationToken);
@@ -371,8 +376,9 @@ internal class VideoController(HttpClient http)
                 .WhereNotNull()
                 .ToDictionary(
                     k =>
-                        k.GetProperty("key").GetString()
-                        ?? throw new InvalidOperationException("`key` null"),
+                        k.GetProperty("key").GetString() ?? throw new InvalidOperationException(
+                            "`key` null"
+                        ),
                     v => v
                 );
 
